@@ -1,0 +1,13 @@
+
+[package]
+name = "aucont"
+version = "0.1.0"
+authors = ["Andrei Tonkikh <andrei.tonkikh@gmail.com>"]
+
+[[bin]]
+name = "aucont_start"
+path = "src/start/main.rs"
+
+[[bin]]
+name = "aucont_list"
+path = "src/list/main.rs"
