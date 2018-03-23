@@ -3,6 +3,8 @@ extern crate num;
 extern crate nix;
 
 mod sys_return;
+mod pipe;
+pub use pipe::*;
 mod process;
 pub use process::*;
 mod libc_wrappers;
