@@ -1,43 +1,12 @@
 use ::std::*;
 use ::std::io::Result;
-use ::libc;
 use ::sys_return::*;
 use ::std::ffi::CString;
+use ::std::ptr::null;
+use ::libc;
 
-pub use ::libc::pid_t;
-pub use ::libc::c_int;
-pub use ::libc::c_void;
-pub use ::libc::ssize_t;
-pub use ::libc::{SIGCHLD, CLONE_CHILD_SETTID, CLONE_NEWUSER, CLONE_NEWUTS, CLONE_NEWIPC,
-                 CLONE_NEWPID, CLONE_NEWNS, CLONE_NEWNET};
-
-pub struct Process {
-    pid: pid_t,
-}
-
-impl Process {
-    pub unsafe fn raw_clone(flags: c_int) -> Result<Option<Process>> {
-        let res = libc::syscall(libc::SYS_clone, flags,
-                                /*stack-ptr*/ 0 as *mut (),
-                                /*ptid*/ 0 as *mut (),
-                                /*ctid*/ 0 as *mut (),
-                                /*regs*/ 0 as *mut ());
-        if res == 0 {
-            return Ok(None)
-        }
-        Ok(Some(Process { pid: sys_return_same(res)? as pid_t }))
-    }
-
-    pub fn get_pid(&self) -> pid_t { self.pid }
-
-    pub fn wait(self) -> Result<c_int> {
-        unsafe {
-            let mut status: c_int = 0;
-            sys_return_unit(libc::waitpid(self.pid, &mut status, 0))?;
-            Ok(libc::WEXITSTATUS(status))
-        }
-    }
-}
+pub use ::libc::{pid_t, c_int, c_void, ssize_t, size_t, c_ulong, uid_t};
+pub use ::libc::{MS_BIND, MS_REC};
 
 pub unsafe fn sys_write(fd: c_int, data: &[u8]) -> Result<usize> {
     sys_return(libc::write(fd, data.as_ptr() as *const c_void, data.len()))
@@ -51,10 +20,13 @@ pub unsafe fn sys_close(fd: c_int) -> Result<()> {
     sys_return_unit(libc::close(fd))
 }
 
-pub fn set_hostname(hostname: &str) -> Result<()> {
+pub fn sys_mount(src: &str, target: &str, fstype: &str, flags: c_ulong) -> Result<()> {
     unsafe {
-        let c_str = CString::new(hostname).unwrap();
-        sys_return_unit(libc::sethostname(c_str.as_ptr(), c_str.as_bytes().len()))
+        let src_c = CString::new(src).unwrap();
+        let target_c = CString::new(target).unwrap();
+        let fstype_c = CString::new(fstype).unwrap();
+        sys_return_unit(libc::mount(
+            src_c.as_ptr(), target_c.as_ptr(), fstype_c.as_ptr(), flags, null()))
     }
 }
 
