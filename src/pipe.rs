@@ -35,7 +35,7 @@ impl io::Read for Pipe {
 impl Pipe {
     pub fn new() -> Result<Pipe> {
         let mut pipe_fd: [RawFd; 2] = [0, 0];
-        let res = unsafe { libc::pipe(pipe_fd.as_mut_ptr()) };
+        let res = unsafe { libc::pipe2(pipe_fd.as_mut_ptr(), libc::O_CLOEXEC) };
         sys_return_unit(res)?;
         Ok(Pipe { read_fd: pipe_fd[0], write_fd: pipe_fd[1] })
     }
