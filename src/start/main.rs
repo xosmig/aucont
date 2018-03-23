@@ -129,10 +129,10 @@ fn main() {
     // tell the container its ID and start the init process
     println!("{}", process.get_pid());
 
-    let ret_code = process.wait().expect("Internal error (waiting init process to end)");
-
-    fs::remove_dir_all(container_dir)
-        .expect("Internal error (removing root_fs of finished container)");
-
-    process::exit(ret_code);
+    if !matches.is_present("daemonize") {
+        let ret_code = process.wait().expect("Internal error (waiting init process to end)");
+        fs::remove_dir_all(container_dir)
+            .expect("Internal error (removing root_fs of finished container)");
+        process::exit(ret_code);
+    }
 }
