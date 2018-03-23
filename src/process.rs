@@ -16,7 +16,7 @@ pub struct Process {
 }
 
 impl Process {
-    pub unsafe fn from_pid(pid: pid_t) -> Result<Process> {
+    pub fn from_pid(pid: pid_t) -> Result<Process> {
         Ok(Process { pid })
     }
 
@@ -30,6 +30,10 @@ impl Process {
             return Ok(None);
         }
         Ok(Some(Process { pid: sys_return_same(res)? as pid_t }))
+    }
+
+    pub fn signal(&mut self, signum: c_int) -> Result<()> {
+        unsafe { sys_return_unit(libc::kill(self.get_pid(), signum)) }
     }
 
     pub fn uid_map(&mut self) -> UidMapFactory {

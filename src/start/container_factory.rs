@@ -83,7 +83,6 @@ impl ContainerFactory {
         write!(self.pipe, "{}", self.process.get_pid())
             .expect("Internal error (writing PID to pipe)");
         // TODO: wait for init process to finish initialization
-        unsafe { Container::new(self.get_id()) }
-            .expect("Internal error (finish container factory)")
+        Container::new(self.get_id()).expect("Internal error (finish container factory)")
     }
 }

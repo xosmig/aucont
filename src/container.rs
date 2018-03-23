@@ -9,8 +9,12 @@ pub struct Container {
 }
 
 impl Container {
-    pub unsafe fn new(id: pid_t) -> io::Result<Container> {
+    pub fn new(id: pid_t) -> io::Result<Container> {
         Ok(Container { process: Process::from_pid(id)? })
+    }
+
+    pub fn cancel(&mut self, signal: c_int) -> io::Result<()> {
+        self.process.signal(signal)
     }
 
     pub fn wait(self) -> io::Result<c_int> {
