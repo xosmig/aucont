@@ -44,12 +44,12 @@ fn container_init_main(matches: clap::ArgMatches, mut pipe: Pipe) -> ! {
 
     sys_mount(root_fs, root_fs, "ignored", MS_BIND | MS_REC).expect("Internal error (bind rootfs)");
     let old_root: &str = &format!("{}/mnt", root_fs);
-    pivot_root(root_fs, old_root).expect("Internal error (pivot_root)");
-    chroot("/").expect("Internal error (chroot)");
-    chdir("/").expect("Internal error (chdir)");
+    chdir(root_fs).expect("Internal error (chdir)");
+    pivot_root(".", old_root).expect("Internal error (pivot_root)");
+    chroot(".").expect("Internal error (chroot)");
 
-    // FIXME: some problems here: can't swap the lines
-    sys_mount("proc", "/proc/", "proc", 0).expect("ERROR mounting proc fs");
+    sys_mount("procfs", "/proc/", "proc", 0).expect("ERROR mounting procfs");
+    sys_mount("sysfs", "/sys/", "sysfs", 0).expect("ERROR mounting sysfs");
     umount2("/mnt", MntFlags::MNT_DETACH).expect("ERROR unmounting old root");
 
     let cmd = matches.value_of("cmd").unwrap();
@@ -108,31 +108,31 @@ fn main() {
             CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET)
     }.expect("Error creating init process for the container");
 
-    match process {
-        None => container_init_main(matches, pipe),
-        Some(mut process) => {
-            write!(pipe, "{}", process.get_pid()).expect("Internal error (writing PID to pipe)");
-
-            let container_dir: &str = &container_dir(process.get_pid());
-            process.uid_map()
-                .entry(getuid(), Uid::from_raw(0))
-                .set()
-                .expect("Internal error: cannot set UID mapping");
-
-            process.gid_map()
-                .entry(getgid(), Gid::from_raw(0))
-                .set()
-                .expect("Internal error: cannot set GID mapping");
-
-            // tell the container its ID and start the init process
-            println!("{}", process.get_pid());
-
-            let ret_code = process.wait().expect("Internal error (waiting init process to end)");
-
-            fs::remove_dir_all(container_dir)
-                .expect("Internal error (removing root_fs of finished container)");
-
-            process::exit(ret_code);
-        }
+    if process.is_none() {
+        container_init_main(matches, pipe);
     }
+
+    let mut process = process.unwrap();
+    write!(pipe, "{}", process.get_pid()).expect("Internal error (writing PID to pipe)");
+
+    let container_dir: &str = &container_dir(process.get_pid());
+    process.uid_map()
+        .entry(getuid(), Uid::from_raw(0))
+        .set()
+        .expect("Internal error: cannot set UID mapping");
+
+    process.gid_map()
+        .entry(getgid(), Gid::from_raw(0))
+        .set()
+        .expect("Internal error: cannot set GID mapping");
+
+    // tell the container its ID and start the init process
+    println!("{}", process.get_pid());
+
+    let ret_code = process.wait().expect("Internal error (waiting init process to end)");
+
+    fs::remove_dir_all(container_dir)
+        .expect("Internal error (removing root_fs of finished container)");
+
+    process::exit(ret_code);
 }
