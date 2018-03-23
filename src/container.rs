@@ -31,6 +31,7 @@ impl Container {
     pub fn is_daemon(&self) -> bool {
         let mut file = fs::File::open(container_info_dir(self.get_id()) + "/daemon")
             .expect("Cannot read container info (is_daemon)");
-        if read_number(&mut file).expect("Internal error (is daemon)") != 0 { true } else { false }
+        if read_number(&mut file).expect("Internal error (parse is_daemon)") != 0
+            { true } else { false }
     }
 }

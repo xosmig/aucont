@@ -14,10 +14,13 @@ pub struct ContainerFactory {
 impl ContainerFactory {
     pub fn new(config: clap::ArgMatches) -> Self {
         let pipe = Pipe::new().expect("ERROR creating pipe");
+        let is_daemon = config.is_present("daemonize");
 
         let process = unsafe {
-            Process::raw_clone(SIGCHLD | CLONE_NEWNS | CLONE_NEWUSER | CLONE_NEWUTS |
-                CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET)
+            Process::raw_clone(SIGCHLD | CLONE_NEWNS | CLONE_NEWUSER |
+                CLONE_NEWUTS | CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET |
+                if is_daemon { CLONE_PARENT } else { 0 }
+            )
         }.expect("Error creating init process for the container");
 
         if process.is_none() {
@@ -36,11 +39,7 @@ impl ContainerFactory {
         }
 
         // parent process
-        ContainerFactory {
-            is_daemon: config.is_present("daemonize"),
-            process: process.unwrap(),
-            pipe,
-        }
+        ContainerFactory { is_daemon, process: process.unwrap(), pipe }
     }
 
     pub fn get_id(&self) -> pid_t {

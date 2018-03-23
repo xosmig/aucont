@@ -8,8 +8,8 @@ use ::libc;
 
 pub use ::libc::{c_int, pid_t};
 pub use ::libc::SIGCHLD;
-pub use ::libc::{CLONE_NEWUSER, CLONE_NEWUTS, CLONE_NEWIPC,
-                 CLONE_NEWPID, CLONE_NEWNS, CLONE_NEWNET};
+pub use ::libc::{CLONE_NEWUSER, CLONE_NEWUTS, CLONE_NEWIPC, CLONE_NEWPID, CLONE_NEWNS,
+                 CLONE_NEWNET, CLONE_PARENT};
 
 pub struct Process {
     pid: pid_t,

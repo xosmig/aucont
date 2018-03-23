@@ -25,6 +25,10 @@ fn main() {
     let id = value_t_or_exit!(matches.value_of("pid"), pid_t);
     let signal = value_t_or_exit!(matches.value_of("sig_num"), c_int);
     let mut container = Container::new(id).expect("Error accessing container");
+    if !container.is_daemon() {
+        panic!("Contained with id '{}' is not a daemon", container.get_id());
+    }
+
     container.cancel(signal).expect("Error cancelling container");
     let ret = container.wait().expect("Internal error (join)");
     process::exit(ret);
