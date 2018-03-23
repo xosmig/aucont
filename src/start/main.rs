@@ -3,13 +3,9 @@ extern crate clap;
 extern crate nix;
 
 mod container_init_main;
-
-use ::aucont::*;
+mod container_factory;
+use ::container_factory::*;
 use ::std::*;
-use ::std::io::Write;
-use ::nix::unistd::{getuid, getgid, Uid, Gid};
-use ::container_init_main::*;
-
 
 fn main() {
     let matches = clap::App::new("aucont_start")
@@ -49,52 +45,18 @@ fn main() {
             .help("Arguments for <cmd>."))
         .get_matches();
 
-    let mut pipe = Pipe::new().expect("ERROR creating pipe");
+    let mut factory = ContainerFactory::new(matches);
 
-    let process = unsafe {
-        Process::raw_clone(SIGCHLD | CLONE_NEWNS | CLONE_NEWUSER | CLONE_NEWUTS |
-            CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET)
-    }.expect("Error creating init process for the container");
+    factory.map_uid();
+    factory.init_dir();
+    factory.record_info();
 
-    if process.is_none() {
-        container_init_main(
-            &mut pipe,
-            ContainerInitConfig {
-                image_path: matches.value_of("image_path").unwrap(),
-                cmd: matches.value_of("cmd").unwrap(),
-                cmd_args: match matches.values_of("cmd_args") {
-                    Some(args) => args.collect(),
-                    None => vec![],
-                },
-            },
-        );
-    }
+    let container = factory.finish();
 
-    let mut process = process.unwrap();
+    println!("{}", container.get_id());
 
-    let container_dir: &str = &container_dir(process.get_pid());
-    process.uid_map()
-        .entry(getuid(), Uid::from_raw(0))
-        .set()
-        .expect("Internal error: cannot set UID mapping");
-
-    process.gid_map()
-        .entry(getgid(), Gid::from_raw(0))
-        .set()
-        .expect("Internal error: cannot set GID mapping");
-
-    // tell the container its ID and start the init process
-    write!(pipe, "{}", process.get_pid()).expect("Internal error (writing PID to pipe)");
-
-    // TODO: wait for a confirmation from the container
-
-    // output the container id. Creation of the container must be finished at this moment
-    println!("{}", process.get_pid());
-
-    if !matches.is_present("daemonize") {
-        let ret_code = process.wait().expect("Internal error (waiting init process to end)");
-        fs::remove_dir_all(container_dir)
-            .expect("Internal error (removing root_fs of finished container)");
-        process::exit(ret_code);
+    if !container.is_daemon() {
+        let ret = container.wait().expect("Internal error (join)");
+        process::exit(ret);
     }
 }

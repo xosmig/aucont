@@ -15,5 +15,9 @@ name = "aucont_start"
 path = "src/start/main.rs"
 
 [[bin]]
+name = "aucont_stop"
+path = "src/stop/main.rs"
+
+[[bin]]
 name = "aucont_list"
 path = "src/list/main.rs"

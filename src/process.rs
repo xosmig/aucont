@@ -1,19 +1,25 @@
 use ::std::io::Result;
 use ::nix::unistd::{Uid, Gid};
-use ::nix::libc::{self, c_int, pid_t, gid_t};
 use ::sys_return::*;
-pub use ::libc::SIGCHLD;
-pub use ::libc::{CLONE_NEWUSER, CLONE_NEWUTS, CLONE_NEWIPC,
-                 CLONE_NEWPID, CLONE_NEWNS, CLONE_NEWNET};
 use ::std::*;
 use ::std::io::Write;
 use ::std::fs::File;
+use ::libc;
+
+pub use ::libc::{c_int, pid_t};
+pub use ::libc::SIGCHLD;
+pub use ::libc::{CLONE_NEWUSER, CLONE_NEWUTS, CLONE_NEWIPC,
+                 CLONE_NEWPID, CLONE_NEWNS, CLONE_NEWNET};
 
 pub struct Process {
     pid: pid_t,
 }
 
 impl Process {
+    pub unsafe fn from_pid(pid: pid_t) -> Result<Process> {
+        Ok(Process { pid })
+    }
+
     pub unsafe fn raw_clone(flags: c_int) -> Result<Option<Process>> {
         let res = libc::syscall(libc::SYS_clone, flags,
                                 /*stack-ptr*/ 0 as *mut (),
