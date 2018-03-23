@@ -2,71 +2,19 @@ extern crate aucont;
 extern crate clap;
 extern crate nix;
 
-use aucont::*;
-use std::*;
-use std::ffi::CString;
-use std::os::unix::process::CommandExt;
-use std::io::{Write, Read};
-use nix::unistd::{pivot_root, chroot, chdir, sethostname, getuid, getgid, Uid, Gid};
-use nix::mount::{mount, MsFlags, MntFlags, umount2};
+mod container_init_main;
 
-fn container_init_main(matches: clap::ArgMatches, mut pipe: Pipe) -> ! {
-    let pid_in_host: pid_t = {
-        let mut buf = vec![0 as u8; 20];
-        const ERR: &'static str = "Internal error (PID from pipe)";
-        let read = pipe.read(&mut buf).expect(ERR);
-        str::from_utf8(&buf[0..read]).expect(ERR).parse().expect(ERR)
-    };
+use ::aucont::*;
+use ::std::*;
+use ::std::io::Write;
+use ::nix::unistd::{getuid, getgid, Uid, Gid};
+use ::container_init_main::*;
 
-    let container_dir: &str = &container_dir(pid_in_host);
-    let root_fs: &str = &container_root_fs(pid_in_host);
-
-    if path::Path::new(container_dir).exists() {
-        eprintln!("Internal error ('{}' already exists)", root_fs);
-        process::exit(1);
-    }
-    fs::create_dir_all(container_dir)
-        .expect("Internal error (create rootfs dir)");
-
-    let cp = process::Command::new("cp")
-        .arg("-rx")
-        .arg(matches.value_of("image_path").unwrap())
-        .arg(root_fs)
-        .output()
-        .expect("Cannot copy the image");
-    if !cp.status.success() {
-        eprint!("ERROR copying the image: ");
-        io::stderr().write(&cp.stderr).unwrap();
-        process::exit(1);
-    }
-
-    sethostname("container").expect("ERROR setting hostname");
-
-    sys_mount(root_fs, root_fs, "ignored", MS_BIND | MS_REC).expect("Internal error (bind rootfs)");
-    let old_root: &str = &format!("{}/mnt", root_fs);
-    chdir(root_fs).expect("Internal error (chdir)");
-    pivot_root(".", old_root).expect("Internal error (pivot_root)");
-    chroot(".").expect("Internal error (chroot)");
-
-    sys_mount("procfs", "/proc/", "proc", 0).expect("ERROR mounting procfs");
-    sys_mount("sysfs", "/sys/", "sysfs", 0).expect("ERROR mounting sysfs");
-    umount2("/mnt", MntFlags::MNT_DETACH).expect("ERROR unmounting old root");
-
-    let cmd = matches.value_of("cmd").unwrap();
-    let mut command = process::Command::new(cmd);
-    if let Some(args) = matches.values_of("cmd_args") {
-        command.args(args);
-    }
-    // either returns an error or doesn't return at all
-    let err = command.exec();
-
-    panic!("Error starting the process '{}': {}", cmd, err);
-}
 
 fn main() {
     let matches = clap::App::new("aucont_start")
         .version("0.1")
-        .about("Starts a new container. \
+        .about("Start a new container. \
         Prints the ID of the started container to the standard output.")
         .arg(clap::Arg::with_name("cpu")
             .long("cpu")
@@ -109,11 +57,20 @@ fn main() {
     }.expect("Error creating init process for the container");
 
     if process.is_none() {
-        container_init_main(matches, pipe);
+        container_init_main(
+            &mut pipe,
+            ContainerInitConfig {
+                image_path: matches.value_of("image_path").unwrap(),
+                cmd: matches.value_of("cmd").unwrap(),
+                cmd_args: match matches.values_of("cmd_args") {
+                    Some(args) => args.collect(),
+                    None => vec![],
+                },
+            },
+        );
     }
 
     let mut process = process.unwrap();
-    write!(pipe, "{}", process.get_pid()).expect("Internal error (writing PID to pipe)");
 
     let container_dir: &str = &container_dir(process.get_pid());
     process.uid_map()
@@ -127,6 +84,11 @@ fn main() {
         .expect("Internal error: cannot set GID mapping");
 
     // tell the container its ID and start the init process
+    write!(pipe, "{}", process.get_pid()).expect("Internal error (writing PID to pipe)");
+
+    // TODO: wait for a confirmation from the container
+
+    // output the container id. Creation of the container must be finished at this moment
     println!("{}", process.get_pid());
 
     if !matches.is_present("daemonize") {
