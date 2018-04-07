@@ -46,6 +46,12 @@ impl Process {
 
     pub fn get_pid(&self) -> pid_t { self.pid }
 
+    pub fn ptrace(&self) -> Result<()> {
+        unsafe {
+            sys_return_unit(libc::ptrace(libc::PTRACE_SEIZE, self.pid, 0/*ignored*/, 0/*ignored*/))
+        }
+    }
+
     pub fn wait(self) -> Result<c_int> {
         unsafe {
             let mut status: c_int = 0;

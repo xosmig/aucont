@@ -10,14 +10,16 @@ pub struct Container {
 
 impl Container {
     pub fn new(id: pid_t) -> io::Result<Container> {
-        Ok(Container { process: Process::from_pid(id)? })
+        let res = Container { process: Process::from_pid(id)? };
+//        res.process.ptrace()?;
+        Ok(res)
     }
 
     pub fn cancel(&mut self, signal: c_int) -> io::Result<()> {
         self.process.signal(signal)
     }
 
-    pub fn wait(self) -> io::Result<c_int> {
+    pub fn wait_and_clear(self) -> io::Result<c_int> {
         let id = self.get_id();
         let ret = self.process.wait()?;
         fs::remove_dir_all(&container_dir(id))?;

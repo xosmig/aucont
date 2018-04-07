@@ -30,6 +30,7 @@ fn main() {
     }
 
     container.cancel(signal).expect("Error cancelling container");
-    let ret = container.wait().expect("Internal error (join)");
+    // FIXME: it fails. See: https://stackoverflow.com/questions/1157700
+    let ret = container.wait_and_clear().expect("Internal error (join)");
     process::exit(ret);
 }

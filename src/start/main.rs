@@ -45,18 +45,12 @@ fn main() {
             .help("Arguments for <cmd>."))
         .get_matches();
 
-    let mut factory = ContainerFactory::new(matches);
-
-    factory.map_uid();
-    factory.init_dir();
-    factory.record_info();
-
-    let container = factory.finish();
+    let container = ContainerFactory::new_container(matches);
 
     println!("{}", container.get_id());
 
     if !container.is_daemon() {
-        let ret = container.wait().expect("Internal error (join)");
+        let ret = container.wait_and_clear().expect("Internal error (join)");
         process::exit(ret);
     }
 }
