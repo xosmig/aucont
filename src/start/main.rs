@@ -2,10 +2,9 @@ extern crate aucont;
 extern crate clap;
 extern crate nix;
 
-mod container_init_main;
-mod container_factory;
-use ::container_factory::*;
-use ::std::*;
+use ::aucont::*;
+use ::container::factory::*;
+use ::std::process;
 
 fn main() {
     let matches = clap::App::new("aucont_start")
@@ -45,7 +44,17 @@ fn main() {
             .help("Arguments for <cmd>."))
         .get_matches();
 
-    let container = ContainerFactory::new_container(matches);
+    let container = ContainerFactory::new_container(
+        ContainerConfig {
+            is_daemon: matches.is_present("daemonize"),
+            image_path: matches.value_of("image_path").unwrap().to_string(),
+            cmd: matches.value_of("cmd").unwrap().to_string(),
+            cmd_args: match matches.values_of("cmd_args") {
+                Some(args) => args.map(|s| s.to_string()).collect(),
+                None => vec![],
+            },
+        }
+    ).expect("ERROR creating container");
 
     println!("{}", container.get_id());
 

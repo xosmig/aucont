@@ -4,15 +4,15 @@ extern crate nix;
 
 mod sys_return;
 mod pipe;
-pub use pipe::*;
-mod process;
-pub use process::*;
 mod libc_wrappers;
-pub use libc_wrappers::*;
-mod container;
-pub use container::*;
 mod utils;
-pub use utils::*;
+pub mod raw_process;
+pub mod container;
+
+pub use self::pipe::*;
+pub use self::raw_process::*;
+pub use self::libc_wrappers::*;
+pub use self::utils::*;
 
 fn container_dir_suf(cont_pid: pid_t, suf: &str) -> String {
     format!("/tmp/aucont/containers/{}{}", cont_pid, suf)

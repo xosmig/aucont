@@ -4,6 +4,7 @@ extern crate clap;
 
 use ::std::*;
 use ::aucont::*;
+use ::container::Container;
 
 fn main() {
     let matches = clap::App::new("aucont_start")
@@ -24,7 +25,7 @@ fn main() {
 
     let id = value_t_or_exit!(matches.value_of("pid"), pid_t);
     let signal = value_t_or_exit!(matches.value_of("sig_num"), c_int);
-    let mut container = Container::new(id).expect("Error accessing container");
+    let mut container = Container::connect(id).expect("Error accessing container");
     if !container.is_daemon() {
         panic!("Contained with id '{}' is not a daemon", container.get_id());
     }

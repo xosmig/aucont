@@ -11,16 +11,16 @@ pub use ::libc::SIGCHLD;
 pub use ::libc::{CLONE_NEWUSER, CLONE_NEWUTS, CLONE_NEWIPC, CLONE_NEWPID, CLONE_NEWNS,
                  CLONE_NEWNET, CLONE_PARENT};
 
-pub struct Process {
+pub struct RawProcess {
     pid: pid_t,
 }
 
-impl Process {
-    pub fn from_pid(pid: pid_t) -> Result<Process> {
-        Ok(Process { pid })
+impl RawProcess {
+    pub fn from_pid(pid: pid_t) -> Result<RawProcess> {
+        Ok(RawProcess { pid })
     }
 
-    pub unsafe fn raw_clone(flags: c_int) -> Result<Option<Process>> {
+    pub unsafe fn raw_clone(flags: c_int) -> Result<Option<RawProcess>> {
         let res = libc::syscall(libc::SYS_clone, flags,
                                 /*stack-ptr*/ 0 as *mut (),
                                 /*ptid*/ 0 as *mut (),
@@ -29,7 +29,7 @@ impl Process {
         if res == 0 {
             return Ok(None);
         }
-        Ok(Some(Process { pid: sys_return_same(res)? as pid_t }))
+        Ok(Some(RawProcess { pid: sys_return_same(res)? as pid_t }))
     }
 
     pub fn signal(&mut self, signum: c_int) -> Result<()> {
@@ -63,12 +63,12 @@ impl Process {
 
 #[must_use]
 pub struct UidMapFactory<'a> {
-    process: &'a mut Process,
+    process: &'a mut RawProcess,
     factory: IdMapFactory<Uid>,
 }
 
 impl<'a> UidMapFactory<'a> {
-    pub fn new(process: &'a mut Process) -> Self {
+    pub fn new(process: &'a mut RawProcess) -> Self {
         UidMapFactory { process, factory: IdMapFactory::new() }
     }
 
@@ -84,12 +84,12 @@ impl<'a> UidMapFactory<'a> {
 
 #[must_use]
 pub struct GidMapFactory<'a> {
-    process: &'a mut Process,
+    process: &'a mut RawProcess,
     factory: IdMapFactory<Gid>,
 }
 
 impl<'a> GidMapFactory<'a> {
-    pub fn new(process: &'a mut Process) -> Self {
+    pub fn new(process: &'a mut RawProcess) -> Self {
         GidMapFactory { process, factory: IdMapFactory::new() }
     }
 

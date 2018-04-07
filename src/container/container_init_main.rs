@@ -1,4 +1,4 @@
-use ::aucont::*;
+use ::*;
 use ::std::*;
 use ::std::os::unix::process::CommandExt;
 use ::nix::unistd::{pivot_root, chroot, chdir, sethostname};
