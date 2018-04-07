@@ -1,6 +1,5 @@
 use std::{string::String, error, fmt, result};
 
-#[derive(Debug)]
 pub struct Error {
     comment: String,
     cause: Option<Box<error::Error>>,
@@ -31,6 +30,12 @@ impl fmt::Display for Error {
                 write!(f, "{}", self.comment)
             }
         }
+    }
+}
+
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

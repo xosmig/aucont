@@ -6,6 +6,7 @@ mod sys_return;
 mod pipe;
 mod libc_wrappers;
 mod utils;
+pub mod redirect_io;
 pub mod raw_process;
 pub mod container;
 
@@ -24,6 +25,10 @@ pub fn container_dir(cont_pid: pid_t) -> String {
 
 pub fn container_info_dir(cont_pid: pid_t) -> String {
     container_dir_suf(cont_pid, "/info")
+}
+
+pub fn container_info_file(cont_pid: pid_t, name: &str) -> String {
+    container_dir_suf(cont_pid, &format!("/info/{}", name))
 }
 
 pub fn container_root_fs(cont_pid: pid_t) -> String {

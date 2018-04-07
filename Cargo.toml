@@ -3,6 +3,10 @@
 name = "aucont"
 version = "0.1.0"
 authors = ["Andrei Tonkikh <andrei.tonkikh@gmail.com>"]
+build = "build.rs"
+
+[build-dependencies]
+gcc = "0.3"
 
 [dependencies]
 clap = "2.31.2"

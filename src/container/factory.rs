@@ -7,7 +7,7 @@ use super::{Error, Result, Container, CommentError};
 use super::container_init_main::*;
 
 pub struct ContainerConfig {
-    pub is_daemon: bool,
+    pub daemonize: bool,
     pub image_path: String,
     pub cmd: String,
     pub cmd_args: Vec<String>,
@@ -41,8 +41,9 @@ impl ContainerFactory {
             container_init_main(
                 pipe,
                 ContainerInitConfig {
-                    cmd: &config.cmd,
-                    cmd_args: config.cmd_args.iter().map(|s| s.as_ref()).collect(),
+                    cmd: config.cmd.clone(),
+                    cmd_args: config.cmd_args.clone(),
+                    daemonize: config.daemonize,
                 },
             );
             // unreachable
@@ -85,9 +86,9 @@ impl ContainerFactory {
     pub fn copy_rootfs(&mut self) -> Result<()> {
         let root_fs: &str = &container_root_fs(self.get_id());
 
-        let cp = process::Command::new("sudo").arg("cp")
-            .arg("--recursive").arg("--one-file-system").arg("--preserve")
-            .arg(&self.config.image_path).arg(root_fs)
+        let cp = process::Command::new("sudo")
+            .args(&["cp", "--recursive", "--one-file-system", "--preserve"])
+            .args(&[&self.config.image_path, root_fs])
             .output().comment("Cannot copy rootfs")?;
 
         if !cp.status.success() {
@@ -102,7 +103,7 @@ impl ContainerFactory {
 
         let mut daemon_file = fs::File::create(&format!("{}/daemon", info_dir))
             .comment("Internal error (open daemon file)")?;
-        writeln!(daemon_file, "{}", if self.config.is_daemon { 1 } else { 0 })
+        writeln!(daemon_file, "{}", if self.config.daemonize { 1 } else { 0 })
             .comment("Internal error (write daemon file)")?;
 
         Ok(())
@@ -115,7 +116,7 @@ impl ContainerFactory {
         // TODO: wait for init process to finish initialization
         Ok(Container {
             process: self.process,
-            is_daemon: self.config.is_daemon,
+            is_daemon: self.config.daemonize,
         })
     }
 }

@@ -46,7 +46,7 @@ fn main() {
 
     let container = ContainerFactory::new_container(
         ContainerConfig {
-            is_daemon: matches.is_present("daemonize"),
+            daemonize: matches.is_present("daemonize"),
             image_path: matches.value_of("image_path").unwrap().to_string(),
             cmd: matches.value_of("cmd").unwrap().to_string(),
             cmd_args: match matches.values_of("cmd_args") {
