@@ -5,6 +5,7 @@ use ::std::*;
 use ::std::io::Write;
 use ::std::fs::File;
 use ::libc;
+use ::std::ffi::CString;
 
 pub use ::libc::{c_int, pid_t};
 pub use ::libc::SIGCHLD;
@@ -50,6 +51,16 @@ impl RawProcess {
         unsafe {
             sys_return_unit(libc::ptrace(libc::PTRACE_SEIZE, self.pid, 0/*ignored*/, 0/*ignored*/))
         }
+    }
+
+    pub fn ns_enter<S: AsRef<str>>(&self, ns_name: S) -> Result<()> {
+        let path = format!("/proc/{}/ns/{}", self.pid, ns_name.as_ref());
+        let path_c = CString::new(path.as_str()).unwrap();
+        let ns_fd = sys_return_same(unsafe {
+            ::libc::open(path_c.as_ptr(), ::libc::O_RDONLY | ::libc::O_CLOEXEC)
+        })?;
+        sys_return_unit(unsafe { ::libc::setns(ns_fd, 0) })?;
+        sys_return_unit(unsafe { ::libc::close(ns_fd) })
     }
 
     pub fn wait(self) -> Result<c_int> {

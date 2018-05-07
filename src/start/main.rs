@@ -41,7 +41,7 @@ fn main() {
             .multiple(true)
             .required(false)
             .value_name("ARGS")
-            .help("Arguments for <cmd>."))
+            .help("Arguments for <CMD>."))
         .get_matches();
 
     let container = ContainerFactory::new_container(

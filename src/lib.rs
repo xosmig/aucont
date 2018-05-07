@@ -2,21 +2,23 @@ extern crate libc;
 extern crate num;
 extern crate nix;
 
-mod sys_return;
 mod pipe;
 mod libc_wrappers;
 mod utils;
 pub mod redirect_io;
 pub mod raw_process;
 pub mod container;
+pub mod sys_return;
 
 pub use self::pipe::*;
 pub use self::raw_process::*;
 pub use self::libc_wrappers::*;
 pub use self::utils::*;
 
+pub const CONTAINERS_DIR: &'static str = "/tmp/aucont/containers";
+
 fn container_dir_suf(cont_pid: pid_t, suf: &str) -> String {
-    format!("/tmp/aucont/containers/{}{}", cont_pid, suf)
+    format!("{}/{}{}", CONTAINERS_DIR, cont_pid, suf)
 }
 
 pub fn container_dir(cont_pid: pid_t) -> String {

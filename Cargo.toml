@@ -25,3 +25,7 @@ path = "src/stop/main.rs"
 [[bin]]
 name = "aucont_list"
 path = "src/list/main.rs"
+
+[[bin]]
+name = "aucont_exec"
+path = "src/exec/main.rs"
