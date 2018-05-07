@@ -5,7 +5,7 @@ extern crate libc;
 
 use ::aucont::pid_t;
 use ::std::process::Command;
-use ::std::os::unix::process::CommandExt;
+use ::std::process;
 
 fn main() {
     let matches = clap::App::new("aucont_start")
@@ -60,7 +60,14 @@ fn main() {
     }
 
 
-    Command::new(cmd)
+    let mut child = Command::new(cmd)
         .args(cmd_args)
-        .exec();
+        .spawn()
+        .expect("Spawn");
+    let exit_status = child.wait()
+        .expect("Wait");
+    process::exit(match exit_status.code() {
+        Some(code) => code,
+        None => ::libc::EINTR, // the process is killed by a signal
+    })
 }
