@@ -15,29 +15,49 @@ pub struct Container {
     is_daemon: bool,
 }
 
+fn suppress_esrch(res: ::std::io::Result<()>) -> ::std::io::Result<()> {
+    match res {
+        Err(e) => {
+            match e.raw_os_error() {
+                Some(::libc::ESRCH) => Ok(()),
+                _ => Err(e),
+            }
+        },
+        Ok(()) => Ok(()),
+    }
+}
+
 impl Container {
     pub fn connect(id: pid_t) -> Result<Container> {
         let mut daemon_file = fs::File::open(container_info_dir(id) + "/daemon")
-            .comment("Cannot read container info (is_daemon)")?;
-        let daemon_number = read_number(&mut daemon_file).comment("Parsing daemon file")?;
+            .comment_error("Cannot read container info (is_daemon)")?;
+        let daemon_number = read_number(&mut daemon_file)
+            .comment_error("Parsing daemon file")?;
 
         let res = Container {
             process: RawProcess::from_pid(id)?,
             is_daemon: daemon_number != 0,
         };
+        suppress_esrch(res.process.ptrace()).comment_error("Ptrace")?;
 
-        res.process.ptrace().comment("Ptrace")?;
         Ok(res)
     }
 
     pub fn cancel(&mut self, signal: c_int) -> Result<()> {
-        Ok(self.process.signal(signal)?)
+        suppress_esrch(self.process.signal(signal)).comment_error("Error killing process")?;
+        Ok(())
     }
 
     pub fn wait_and_clear(self) -> Result<c_int> {
         let id = self.get_id();
-        let ret = self.process.wait().comment("Waiting for process to finish")?;
-        fs::remove_dir_all(&container_dir(id)).comment("Removing container files")?;
+        let ret = match self.process.wait() {
+            Err(e) => match e.raw_os_error() {
+                Some(::libc::ECHILD) => { 0 },
+                _ => return Err(e).comment_error("Waiting for process to finish"),
+            },
+            Ok(code) => code,
+        };
+        fs::remove_dir_all(&container_dir(id)).comment_error("Removing container files")?;
         Ok(ret)
     }
 

@@ -30,12 +30,12 @@ impl ContainerFactory {
     }
 
     pub fn new(config: ContainerConfig) -> Result<Self> {
-        let pipe = Pipe::new().comment("ERROR creating pipe")?;
+        let pipe = Pipe::new().comment_error("ERROR creating pipe")?;
 
         let process = unsafe {
             RawProcess::raw_clone(SIGCHLD | CLONE_NEWNS | CLONE_NEWUSER |
                 CLONE_NEWUTS | CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET)
-        }.comment("Error creating init process for the container")?;
+        }.comment_error("Error creating init process for the container")?;
 
         if process.is_none() {
             container_init_main(
@@ -63,11 +63,11 @@ impl ContainerFactory {
     pub fn map_uid(&mut self) -> Result<()> {
         self.process.uid_map()
             .entry(getuid(), Uid::from_raw(0))
-            .set().comment("Internal error: cannot set UID mapping")?;
+            .set().comment_error("Internal error: cannot set UID mapping")?;
 
         self.process.gid_map()
             .entry(getgid(), Gid::from_raw(0))
-            .set().comment("Internal error: cannot set GID mapping")?;
+            .set().comment_error("Internal error: cannot set GID mapping")?;
 
         Ok(())
     }
@@ -79,7 +79,7 @@ impl ContainerFactory {
             return Err(Error::simple("Internal error ('{}' already exists)"));
         }
 
-        fs::create_dir_all(dir).comment("Internal error (create container dir)")?;
+        fs::create_dir_all(dir).comment_error("Internal error (create container dir)")?;
         Ok(())
     }
 
@@ -89,22 +89,22 @@ impl ContainerFactory {
         let cp = process::Command::new("sudo")
             .args(&["cp", "--recursive", "--one-file-system", "--preserve"])
             .args(&[&self.config.image_path, root_fs])
-            .output().comment("Cannot copy rootfs")?;
+            .output().comment_error("Cannot copy rootfs")?;
 
         if !cp.status.success() {
-            return Err(Error::simple("ERROR copying the image"))
+            return Err(Error::simple("ERROR copying the image"));
         }
         Ok(())
     }
 
     pub fn record_info(&mut self) -> Result<()> {
         let info_dir = &container_info_dir(self.get_id());
-        fs::create_dir_all(info_dir).comment("Internal error (create info dir)")?;
+        fs::create_dir_all(info_dir).comment_error("Internal error (create info dir)")?;
 
         let mut daemon_file = fs::File::create(&format!("{}/daemon", info_dir))
-            .comment("Internal error (open daemon file)")?;
+            .comment_error("Internal error (open daemon file)")?;
         writeln!(daemon_file, "{}", if self.config.daemonize { 1 } else { 0 })
-            .comment("Internal error (write daemon file)")?;
+            .comment_error("Internal error (write daemon file)")?;
 
         Ok(())
     }
@@ -112,7 +112,7 @@ impl ContainerFactory {
     pub fn finish(mut self) -> Result<Container> {
         // send the pid to the init process
         write!(self.pipe, "{}", self.process.get_pid())
-            .comment("Internal error (writing PID to pipe)")?;
+            .comment_error("Internal error (writing PID to pipe)")?;
         // TODO: wait for init process to finish initialization
         Ok(Container {
             process: self.process,

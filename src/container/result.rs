@@ -58,11 +58,11 @@ impl From<::std::io::Error> for Error {
 pub type Result<T> = result::Result<T, Error>;
 
 pub trait CommentError<T> {
-    fn comment<S: Into<String>>(self, comment: S) -> Result<T>;
+    fn comment_error<S: Into<String>>(self, comment: S) -> Result<T>;
 }
 
 impl<T, E: Into<Box<error::Error>>> CommentError<T> for result::Result<T, E> {
-    fn comment<S: Into<String>>(self, comment: S) -> Result<T> {
+    fn comment_error<S: Into<String>>(self, comment: S) -> Result<T> {
         match self {
             Ok(x) => Ok(x),
             Err(e) => Err(Error::new(comment, e))
