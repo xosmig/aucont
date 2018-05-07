@@ -9,5 +9,5 @@ int redirect_stdout(const char* path) {
 }
 
 int redirect_stderr(const char* path) {
-    return (freopen(path, "w", stdout) == NULL) ? -1 : 0;
+    return (freopen(path, "w", stderr) == NULL) ? -1 : 0;
 }
