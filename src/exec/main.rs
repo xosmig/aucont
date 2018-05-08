@@ -5,12 +5,16 @@ extern crate libc;
 
 use ::aucont::pid_t;
 use ::std::process::Command;
+use ::std::process;
+
+
 fn main() {
     let matches = clap::App::new("aucont_start")
         .version("0.1")
         .about("Start command <CMD> with arguments <ARGS> inside running container with id <ID>. \
         The command is started in interactive mode. \
         Returns the exit code returned by <CMD>.")
+        .setting(clap::AppSettings::AllowLeadingHyphen)
         .arg(clap::Arg::with_name("pid")
             .index(1)
             .required(true)
@@ -57,5 +61,3 @@ fn main() {
         None => ::libc::EINTR, // the process is killed by a signal
     })
 }
-
-use ::std::process;
