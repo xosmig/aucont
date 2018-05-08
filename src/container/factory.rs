@@ -3,20 +3,54 @@ use ::raw_process::*;
 use ::std::*;
 use ::std::io::Write;
 use ::nix::unistd::{getuid, getgid, Uid, Gid};
+use ::std::ffi::OsStr;
+use ::std::net::Ipv4Addr;
 use super::{Error, Result, Container, CommentError};
 use super::container_init_main::*;
+
+pub struct NetworkConfig {
+    pub cont_addr: Ipv4Addr,
+    pub host_addr: Ipv4Addr,
+}
 
 pub struct ContainerConfig {
     pub daemonize: bool,
     pub image_path: String,
     pub cmd: String,
     pub cmd_args: Vec<String>,
+    pub net: Option<NetworkConfig>,
 }
 
 pub struct ContainerFactory {
     config: ContainerConfig,
     process: RawProcess,
     pipe: Pipe,
+}
+
+fn shell<I, S1, S2>(cmd: S1, args: I) -> Result<()>
+    where I: IntoIterator<Item=S2> + std::fmt::Debug, S1: AsRef<str>, S2: AsRef<OsStr>
+{
+    let error_string = format!("Error executing '{}' with arguments {:?}", cmd.as_ref(), args);
+
+    let output = process::Command::new(cmd.as_ref())
+        .args(args)
+        .output().comment_error(error_string.as_str())?;
+
+    if !output.status.success() {
+        let stderr_string = std::str::from_utf8(&output.stderr).unwrap();
+        let stdout_string = std::str::from_utf8(&output.stdout).unwrap();
+        let error_message = format!("{}\nstderr:\n{}\nstdout:\n{}\n=======",
+                                    error_string.as_str(), stderr_string, stdout_string);
+        return Err(Error::simple(error_message));
+    }
+
+    Ok(())
+}
+
+macro_rules! sudo {
+    ( $( $x: expr ),* ) => {
+        shell("sudo", &[ $( $x ),* ])
+    };
 }
 
 impl ContainerFactory {
@@ -26,6 +60,8 @@ impl ContainerFactory {
         factory.init_dir()?;
         factory.copy_rootfs()?;
         factory.record_info()?;
+        factory.configure_network()?;
+        factory.start_init()?;
         factory.finish()
     }
 
@@ -34,7 +70,7 @@ impl ContainerFactory {
 
         let process = unsafe {
             RawProcess::raw_clone(SIGCHLD | CLONE_NEWNS | CLONE_NEWUSER | CLONE_NEWUTS |
-                CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET| CLONE_NEWCGROUP)
+                CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET | CLONE_NEWCGROUP)
         }.comment_error("Error creating init process for the container")?;
 
         if process.is_none() {
@@ -84,16 +120,9 @@ impl ContainerFactory {
     }
 
     pub fn copy_rootfs(&mut self) -> Result<()> {
-        let root_fs: &str = &container_root_fs(self.get_id());
-
-        let cp = process::Command::new("sudo")
-            .args(&["cp", "--recursive", "--one-file-system", "--preserve"])
-            .args(&[&self.config.image_path, root_fs])
-            .output().comment_error("Cannot copy rootfs")?;
-
-        if !cp.status.success() {
-            return Err(Error::simple("ERROR copying the image"));
-        }
+        let root_fs = container_root_fs(self.get_id());
+        sudo!("cp", "--recursive", "--one-file-system", "--preserve",
+            &self.config.image_path, root_fs.as_str())?;
         Ok(())
     }
 
@@ -109,10 +138,36 @@ impl ContainerFactory {
         Ok(())
     }
 
-    pub fn finish(mut self) -> Result<Container> {
+    pub fn start_init(&mut self) -> Result<()> {
         // send the pid to the init process
         write!(self.pipe, "{}", self.process.get_pid())
             .comment_error("Internal error (writing PID to pipe)")?;
+        Ok(())
+    }
+
+    pub fn configure_network(&mut self) -> Result<()> {
+        if let Some(ref conf) = self.config.net {
+            let id = &self.get_id().to_string() as &str;
+            let guest_ip = &conf.cont_addr.to_string() as &str;
+            let host_ip = &conf.host_addr.to_string() as &str;
+            let veth_host = &format!("veth{}h", id) as &str;
+            let veth_guest = &format!("veth{}g", id) as &str;
+
+            sudo!("ip", "link", "add", veth_host, "type", "veth", "peer", "name", veth_guest)?;
+            sudo!("ip", "link", "set", veth_guest, "netns", id)?;
+            sudo!("nsenter", "--net", "-t", id, "ip", "link", "set", "lo", "up")?;
+            sudo!("nsenter", "--net", "-t", id, "ip", "link", "set", veth_guest, "name", "eth0")?;
+            sudo!("nsenter", "--net", "-t", id, "ip", "link", "set", "eth0", "up")?;
+            sudo!("nsenter", "--net", "-t", id, "ip", "addr", "add",
+                &format!("{}/24", guest_ip), "dev", "eth0")?;
+            sudo!("ip", "link", "set", veth_host, "up")?;
+            sudo!("ip", "addr", "add", host_ip, "dev", veth_host)?;
+            sudo!("ip", "route", "add", guest_ip, "dev", veth_host)?;
+        }
+        Ok(())
+    }
+
+    pub fn finish(self) -> Result<Container> {
         // TODO: wait for init process to finish initialization
         Ok(Container {
             process: self.process,

@@ -5,6 +5,7 @@ extern crate nix;
 use ::aucont::*;
 use ::container::factory::*;
 use ::std::process;
+use ::std::net::Ipv4Addr;
 
 fn main() {
     let matches = clap::App::new("aucont_start")
@@ -44,6 +45,13 @@ fn main() {
             .help("Arguments for <CMD>."))
         .get_matches();
 
+    let net_config = matches.value_of("net").map(|addr_str| {
+        let cont_addr: Ipv4Addr = addr_str.parse().expect("Can't parse ip address");
+        let octets = cont_addr.octets();
+        let host_addr = Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3] + 1);
+        NetworkConfig { cont_addr, host_addr }
+    });
+
     let container = ContainerFactory::new_container(
         ContainerConfig {
             daemonize: matches.is_present("daemonize"),
@@ -53,6 +61,7 @@ fn main() {
                 Some(args) => args.map(|s| s.to_string()).collect(),
                 None => vec![],
             },
+            net: net_config,
         }
     ).expect("ERROR creating container");
 
