@@ -1,4 +1,4 @@
-use ::std::io::Result;
+use ::std::io;
 use ::nix::unistd::{Uid, Gid};
 use ::sys_return::*;
 use ::std::*;
@@ -10,18 +10,18 @@ use ::std::ffi::CString;
 pub use ::libc::{c_int, pid_t};
 pub use ::libc::SIGCHLD;
 pub use ::libc::{CLONE_NEWUSER, CLONE_NEWUTS, CLONE_NEWIPC, CLONE_NEWPID, CLONE_NEWNS,
-                 CLONE_NEWNET, CLONE_PARENT};
+                 CLONE_NEWNET, CLONE_PARENT, CLONE_NEWCGROUP};
 
 pub struct RawProcess {
     pid: pid_t,
 }
 
 impl RawProcess {
-    pub fn from_pid(pid: pid_t) -> Result<RawProcess> {
+    pub fn from_pid(pid: pid_t) -> io::Result<RawProcess> {
         Ok(RawProcess { pid })
     }
 
-    pub unsafe fn raw_clone(flags: c_int) -> Result<Option<RawProcess>> {
+    pub unsafe fn raw_clone(flags: c_int) -> io::Result<Option<RawProcess>> {
         let res = libc::syscall(libc::SYS_clone, flags,
                                 /*stack-ptr*/ 0 as *mut (),
                                 /*ptid*/ 0 as *mut (),
@@ -33,7 +33,7 @@ impl RawProcess {
         Ok(Some(RawProcess { pid: sys_return_same(res)? as pid_t }))
     }
 
-    pub fn signal(&mut self, signum: c_int) -> Result<()> {
+    pub fn signal(&mut self, signum: c_int) -> io::Result<()> {
         unsafe { sys_return_unit(libc::kill(self.get_pid(), signum)) }
     }
 
@@ -47,13 +47,13 @@ impl RawProcess {
 
     pub fn get_pid(&self) -> pid_t { self.pid }
 
-    pub fn ptrace(&self) -> Result<()> {
+    pub fn ptrace(&self) -> io::Result<()> {
         unsafe {
             sys_return_unit(libc::ptrace(libc::PTRACE_SEIZE, self.pid, 0/*ignored*/, 0/*ignored*/))
         }
     }
 
-    pub fn ns_enter<S: AsRef<str>>(&self, ns_name: S) -> Result<()> {
+    pub fn ns_enter<S: AsRef<str>>(&self, ns_name: S) -> io::Result<()> {
         let path = format!("/proc/{}/ns/{}", self.pid, ns_name.as_ref());
         let path_c = CString::new(path.as_str()).unwrap();
         let ns_fd = sys_return_same(unsafe {
@@ -63,7 +63,12 @@ impl RawProcess {
         sys_return_unit(unsafe { ::libc::close(ns_fd) })
     }
 
-    pub fn wait(self) -> Result<c_int> {
+    // Consumes the process object
+    pub fn ns_enter_mnt(self) -> io::Result<()> {
+        self.ns_enter("mnt")
+    }
+
+    pub fn wait(self) -> io::Result<c_int> {
         unsafe {
             let mut status: c_int = 0;
             sys_return_unit(libc::waitpid(self.pid, &mut status, 0))?;
@@ -88,7 +93,7 @@ impl<'a> UidMapFactory<'a> {
         self
     }
 
-    pub fn set(self) -> Result<()> {
+    pub fn set(self) -> io::Result<()> {
         self.factory.set(&format!("/proc/{}/uid_map", self.process.get_pid()))
     }
 }
@@ -109,7 +114,7 @@ impl<'a> GidMapFactory<'a> {
         self
     }
 
-    pub fn set(self) -> Result<()> {
+    pub fn set(self) -> io::Result<()> {
         {
             let mut file = File::create(&format!("/proc/{}/setgroups", self.process.get_pid()))?;
             write!(file, "deny").expect("Internal error (disabling setgroups for container)");
@@ -138,7 +143,7 @@ impl<I: fmt::Display> IdMapFactory<I> {
         self.entries.push(IdMapEntry { from, to, length: 1 });
     }
 
-    pub fn set(self, path: &str) -> Result<()> {
+    pub fn set(self, path: &str) -> io::Result<()> {
         if self.entries.is_empty() {
             return Ok(());
         }

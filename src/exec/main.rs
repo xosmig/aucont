@@ -5,8 +5,6 @@ extern crate libc;
 
 use ::aucont::pid_t;
 use ::std::process::Command;
-use ::std::process;
-
 fn main() {
     let matches = clap::App::new("aucont_start")
         .version("0.1")
@@ -38,27 +36,15 @@ fn main() {
         None => vec![],
     };
 
-    let init_in_host = aucont::RawProcess::from_pid(id)
+    let cont_init_proc = aucont::RawProcess::from_pid(id)
         .expect("Error accessing container init process");
-    init_in_host.ns_enter("mnt").expect("Error entering namespace");
-
-    let init_in_guest = aucont::RawProcess::from_pid(1)
-        .expect("Error accessing container init process");
-
-    init_in_guest.ns_enter("uts").expect("Error entering namespace");
-    init_in_guest.ns_enter("net").expect("Error entering namespace");
-    init_in_guest.ns_enter("ipc").expect("Error entering namespace");
-    init_in_guest.ns_enter("cgroup").expect("Error entering namespace");
-    init_in_guest.ns_enter("pid").expect("Error entering namespace");
-    init_in_guest.ns_enter("user").expect("Error entering namespace");
-
-    unsafe {
-        ::aucont::sys_return::sys_return_unit(::libc::setuid(0))
-            .expect("Error setting uid");
-        ::aucont::sys_return::sys_return_unit(::libc::setgid(0))
-            .expect("Error setting gid");
-    }
-
+    cont_init_proc.ns_enter("user").expect("Error entering user namespace");
+    cont_init_proc.ns_enter("uts").expect("Error entering uts namespace");
+    cont_init_proc.ns_enter("net").expect("Error entering net namespace");
+    cont_init_proc.ns_enter("ipc").expect("Error entering ipc namespace");
+    cont_init_proc.ns_enter("cgroup").expect("Error entering cgroup namespace");
+    cont_init_proc.ns_enter("pid").expect("Error entering pid namespace");
+    cont_init_proc.ns_enter_mnt().expect("Error entering namespace");
 
     let mut child = Command::new(cmd)
         .args(cmd_args)
@@ -71,3 +57,5 @@ fn main() {
         None => ::libc::EINTR, // the process is killed by a signal
     })
 }
+
+use ::std::process;

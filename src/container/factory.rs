@@ -33,8 +33,8 @@ impl ContainerFactory {
         let pipe = Pipe::new().comment_error("ERROR creating pipe")?;
 
         let process = unsafe {
-            RawProcess::raw_clone(SIGCHLD | CLONE_NEWNS | CLONE_NEWUSER |
-                CLONE_NEWUTS | CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET)
+            RawProcess::raw_clone(SIGCHLD | CLONE_NEWNS | CLONE_NEWUSER | CLONE_NEWUTS |
+                CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET| CLONE_NEWCGROUP)
         }.comment_error("Error creating init process for the container")?;
 
         if process.is_none() {
