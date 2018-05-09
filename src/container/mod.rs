@@ -35,7 +35,7 @@ impl Container {
             .comment_error("Parsing daemon file")?;
 
         let res = Container {
-            process: RawProcess::from_pid(id)?,
+            process: RawProcess::from_pid(id),
             is_daemon: daemon_number != 0,
         };
         suppress_esrch(res.process.ptrace()).comment_error("Ptrace")?;

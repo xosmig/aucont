@@ -17,8 +17,8 @@ pub struct RawProcess {
 }
 
 impl RawProcess {
-    pub fn from_pid(pid: pid_t) -> io::Result<RawProcess> {
-        Ok(RawProcess { pid })
+    pub fn from_pid(pid: pid_t) -> RawProcess {
+        RawProcess { pid }
     }
 
     pub unsafe fn raw_clone(flags: c_int) -> io::Result<Option<RawProcess>> {

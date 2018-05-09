@@ -98,8 +98,9 @@ impl ContainerFactory {
 
     pub fn copy_rootfs(&mut self) -> Result<()> {
         let root_fs = container_root_fs(self.get_id());
-        sudo!("cp", "--recursive", "--one-file-system", "--preserve",
-            &self.config.image_path, root_fs.as_str())?;
+        sudo!("cp", "--recursive"/*, "--one-file-system"*/, "--preserve",
+            &self.config.image_path, root_fs.as_str())
+            .comment_error("Error copying rootfs")?;
         Ok(())
     }
 
@@ -132,7 +133,7 @@ impl ContainerFactory {
         Ok(())
     }
 
-    pub fn configure_network(&mut self) -> Result<()> {
+    fn configure_network_with_io_result(&mut self) -> io::Result<()> {
         if let Some(ref conf) = self.config.net {
             let id = &self.get_id().to_string() as &str;
             let guest_ip = &conf.cont_addr.to_string() as &str;
@@ -159,6 +160,10 @@ impl ContainerFactory {
             // sudo ip link del br_cont
         }
         Ok(())
+    }
+
+    pub fn configure_network(&mut self) -> Result<()> {
+        self.configure_network_with_io_result().comment_error("Error configuring network")
     }
 
     pub fn finish(self) -> Result<Container> {

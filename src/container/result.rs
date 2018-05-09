@@ -20,11 +20,11 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.cause {
             &Some(ref cause) => {
-                if self.comment == "" {
-                    write!(f, "{}", cause)
-                } else {
+//                if self.comment == "" {
+//                    write!(f, "{}", cause)
+//                } else {
                     write!(f, "{}: {}", self.comment, cause)
-                }
+//                }
             }
             &None => {
                 write!(f, "{}", self.comment)
@@ -49,11 +49,11 @@ impl error::Error for Error {
     }
 }
 
-impl From<::std::io::Error> for Error {
-    fn from(error: ::std::io::Error) -> Error {
-        Error::new("", error)
-    }
-}
+//impl From<::std::io::Error> for Error {
+//    fn from(error: ::std::io::Error) -> Error {
+//        Error::new("", error)
+//    }
+//}
 
 pub type Result<T> = result::Result<T, Error>;
 

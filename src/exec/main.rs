@@ -40,8 +40,7 @@ fn main() {
         None => vec![],
     };
 
-    let cont_init_proc = aucont::RawProcess::from_pid(id)
-        .expect("Error accessing container init process");
+    let cont_init_proc = aucont::RawProcess::from_pid(id);
     cont_init_proc.ns_enter("user").expect("Error entering user namespace");
     cont_init_proc.ns_enter("uts").expect("Error entering uts namespace");
     cont_init_proc.ns_enter("net").expect("Error entering net namespace");
