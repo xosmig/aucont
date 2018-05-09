@@ -52,3 +52,7 @@ pub fn sys_umount(path: &str) -> io::Result<()> {
 pub fn getpid() -> pid_t {
     unsafe { ::libc::getpid() }
 }
+
+pub fn sys_unshare(flags: c_int) -> io::Result<()> {
+    unsafe { sys_return_unit(::libc::unshare(flags)) }
+}

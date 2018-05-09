@@ -47,7 +47,7 @@ impl ContainerFactory {
 
         let process = unsafe {
             RawProcess::raw_clone(SIGCHLD | CLONE_NEWNS | CLONE_NEWUSER | CLONE_NEWUTS |
-                CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET | CLONE_NEWCGROUP)
+                CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNET)
         }.comment_error("Error creating init process for the container")?;
 
         if process.is_none() {
