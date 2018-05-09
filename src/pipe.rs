@@ -3,6 +3,7 @@ use ::std::os::unix::io::RawFd;
 use ::libc_wrappers::{sys_read, sys_write, sys_close};
 use ::libc;
 use ::sys_return::*;
+use ::check::Check;
 
 pub struct Pipe {
     read_fd: RawFd,
@@ -11,8 +12,8 @@ pub struct Pipe {
 
 impl Drop for Pipe {
     fn drop(&mut self) {
-        sys_close(self.read_fd).expect("ERROR closing pipe");
-        sys_close(self.write_fd).expect("ERROR closing pipe");
+        sys_close(self.read_fd).log_error("ERROR closing pipe");
+        sys_close(self.write_fd).log_error("ERROR closing pipe");
     }
 }
 

@@ -4,6 +4,7 @@ extern crate clap;
 extern crate nix;
 
 use ::aucont::*;
+use ::aucont::check::Check;
 use ::container::factory::*;
 use ::std::process;
 use ::std::net::Ipv4Addr;
@@ -47,7 +48,7 @@ fn main() {
         .get_matches();
 
     let net_config = matches.value_of("net").map(|addr_str| {
-        let cont_addr: Ipv4Addr = addr_str.parse().expect("Can't parse ip address");
+        let cont_addr: Ipv4Addr = addr_str.parse().check("Can't parse ip address");
         let octets = cont_addr.octets();
         let host_addr = Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3] + 1);
         NetworkConfig { cont_addr, host_addr }
@@ -66,12 +67,12 @@ fn main() {
             cpu_perc: matches.value_of("cpu")
                 .map(|_| value_t_or_exit!(matches.value_of("cpu"), u32))
         }
-    ).expect("ERROR creating container");
+    ).check("ERROR creating container");
 
     println!("{}", container.get_id());
 
     if !container.is_daemon() {
-        let ret = container.wait_and_clear().expect("Internal error (join)");
+        let ret = container.wait_and_clear().check("Internal error (join)");
         process::exit(ret);
     }
 }

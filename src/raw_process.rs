@@ -115,10 +115,7 @@ impl<'a> GidMapFactory<'a> {
     }
 
     pub fn set(self) -> io::Result<()> {
-        {
-            let mut file = File::create(&format!("/proc/{}/setgroups", self.process.get_pid()))?;
-            write!(file, "deny").expect("Internal error (disabling setgroups for container)");
-        }
+        File::create(&format!("/proc/{}/setgroups", self.process.get_pid()))?.write_all(b"deny")?;
         self.factory.set(&format!("/proc/{}/gid_map", self.process.get_pid()))
     }
 }

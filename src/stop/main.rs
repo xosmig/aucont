@@ -4,6 +4,7 @@ extern crate clap;
 
 use ::std::*;
 use ::aucont::*;
+use ::aucont::check::Check;
 use ::container::Container;
 
 fn main() {
@@ -25,12 +26,12 @@ fn main() {
 
     let id = value_t_or_exit!(matches.value_of("pid"), pid_t);
     let signal = value_t_or_exit!(matches.value_of("sig_num"), c_int);
-    let mut container = Container::connect(id).expect("Error accessing container");
+    let mut container = Container::connect(id).check("Error accessing container");
     if !container.is_daemon() {
         panic!("Contained with id '{}' is not a daemon", container.get_id());
     }
 
-    container.cancel(signal).expect("Error cancelling container");
-    let ret = container.wait_and_clear().expect("Internal error (join)");
+    container.cancel(signal).check("Error cancelling container");
+    let ret = container.wait_and_clear().check("Internal error (join)");
     process::exit(ret);
 }
