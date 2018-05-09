@@ -7,7 +7,7 @@ use ::aucont::*;
 use ::container::Container;
 
 fn main() {
-    let matches = clap::App::new("aucont_start")
+    let matches = clap::App::new("aucont_stop")
         .version("0.1")
         .about("Stop a daemonized container, started by aucont_start.")
         .arg(clap::Arg::with_name("pid")

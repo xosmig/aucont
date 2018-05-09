@@ -9,7 +9,7 @@ use ::std::process;
 
 
 fn main() {
-    let matches = clap::App::new("aucont_start")
+    let matches = clap::App::new("aucont_exec")
         .version("0.1")
         .about("Start command <CMD> with arguments <ARGS> inside running container with id <ID>. \
         The command is started in interactive mode. \

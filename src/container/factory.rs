@@ -1,9 +1,9 @@
-use ::*;
+use ::{shell, Pipe};
+use ::aucont_paths::*;
 use ::raw_process::*;
 use ::std::*;
 use ::std::io::Write;
 use ::nix::unistd::{getuid, getgid, Uid, Gid};
-use ::std::ffi::OsStr;
 use ::std::net::Ipv4Addr;
 use super::{Error, Result, Container, CommentError};
 use super::container_init_main::*;
@@ -19,6 +19,7 @@ pub struct ContainerConfig {
     pub cmd: String,
     pub cmd_args: Vec<String>,
     pub net: Option<NetworkConfig>,
+    pub cpu_perc: Option<u32>,
 }
 
 pub struct ContainerFactory {
@@ -27,31 +28,6 @@ pub struct ContainerFactory {
     pipe: Pipe,
 }
 
-fn shell<I, S1, S2>(cmd: S1, args: I) -> Result<()>
-    where I: IntoIterator<Item=S2> + std::fmt::Debug, S1: AsRef<str>, S2: AsRef<OsStr>
-{
-    let error_string = format!("Error executing '{}' with arguments {:?}", cmd.as_ref(), args);
-
-    let output = process::Command::new(cmd.as_ref())
-        .args(args)
-        .output().comment_error(error_string.as_str())?;
-
-    if !output.status.success() {
-        let stderr_string = std::str::from_utf8(&output.stderr).unwrap();
-        let stdout_string = std::str::from_utf8(&output.stdout).unwrap();
-        let error_message = format!("{}\nstderr:\n{}\nstdout:\n{}\n=======",
-                                    error_string.as_str(), stderr_string, stdout_string);
-        return Err(Error::simple(error_message));
-    }
-
-    Ok(())
-}
-
-macro_rules! sudo {
-    ( $( $x: expr ),* ) => {
-        shell("sudo", &[ $( $x ),* ])
-    };
-}
 
 impl ContainerFactory {
     pub fn new_container(config: ContainerConfig) -> Result<Container> {
@@ -60,6 +36,7 @@ impl ContainerFactory {
         factory.init_dir()?;
         factory.copy_rootfs()?;
         factory.record_info()?;
+        factory.set_cpu_limit()?;
         factory.configure_network()?;
         factory.start_init()?;
         factory.finish()
@@ -145,6 +122,16 @@ impl ContainerFactory {
         Ok(())
     }
 
+    pub fn set_cpu_limit(&mut self) -> Result<()> {
+        if let Some(perc) = self.config.cpu_perc {
+            sudo!(&aucont_util("cgroup"),
+                &self.get_id().to_string(), &getuid().to_string(), &getgid().to_string(),
+                "--add", &perc.to_string())
+                .comment_error("Error setting up cgroups")?;
+        }
+        Ok(())
+    }
+
     pub fn configure_network(&mut self) -> Result<()> {
         if let Some(ref conf) = self.config.net {
             let id = &self.get_id().to_string() as &str;
@@ -163,6 +150,13 @@ impl ContainerFactory {
             sudo!("ip", "link", "set", veth_host, "up")?;
             sudo!("ip", "addr", "add", host_ip, "dev", veth_host)?;
             sudo!("ip", "route", "add", guest_ip, "dev", veth_host)?;
+
+            // sudo ip link add br_cont type bridge
+            // sudo ip link set veth_host master br_cont
+            // sudo ip link set br_cont up
+            // ...
+            // sudo ip link set br_cont down
+            // sudo ip link del br_cont
         }
         Ok(())
     }

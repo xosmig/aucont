@@ -1,12 +1,12 @@
+mod container_init_main;
 pub mod factory;
 pub mod result;
-mod container_init_main;
 
 pub use ::raw_process::pid_t;
 
 use ::std::fs;
 use ::raw_process::*;
-use ::{container_dir, container_info_dir, read_number};
+use ::{container_dir, container_info_dir, read_number, aucont_util, shell};
 use self::result::{Error, Result, CommentError};
 
 
@@ -57,6 +57,8 @@ impl Container {
             },
             Ok(code) => code,
         };
+        sudo!(&aucont_util("cgroup"), &id.to_string(), "--del")
+            .comment_error("Error removing cgroup")?;
         fs::remove_dir_all(&container_dir(id)).comment_error("Removing container files")?;
         Ok(ret)
     }

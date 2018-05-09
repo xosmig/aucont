@@ -1,4 +1,5 @@
 extern crate aucont;
+#[macro_use]
 extern crate clap;
 extern crate nix;
 
@@ -62,6 +63,8 @@ fn main() {
                 None => vec![],
             },
             net: net_config,
+            cpu_perc: matches.value_of("cpu")
+                .map(|_| value_t_or_exit!(matches.value_of("cpu"), u32))
         }
     ).expect("ERROR creating container");
 
