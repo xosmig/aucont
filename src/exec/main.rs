@@ -3,9 +3,10 @@ extern crate aucont;
 extern crate clap;
 extern crate libc;
 
-use ::aucont::pid_t;
+use ::aucont::{pid_t, cgroup, getpid};
 use ::std::process::Command;
 use ::std::process;
+use ::aucont::check::Check;
 
 
 fn main() {
@@ -40,21 +41,21 @@ fn main() {
         None => vec![],
     };
 
-    let cont_init_proc = aucont::RawProcess::from_pid(id);
-    cont_init_proc.ns_enter("user").expect("Error entering user namespace");
-    cont_init_proc.ns_enter("uts").expect("Error entering uts namespace");
-    cont_init_proc.ns_enter("net").expect("Error entering net namespace");
-    cont_init_proc.ns_enter("ipc").expect("Error entering ipc namespace");
-    cont_init_proc.ns_enter("cgroup").expect("Error entering cgroup namespace");
-    cont_init_proc.ns_enter("pid").expect("Error entering pid namespace");
-    cont_init_proc.ns_enter_mnt().expect("Error entering namespace");
+    // Note: this must be done before entering container namespaces
+    cgroup::cgroup_enter(id, getpid()).check("Error entering cgroup of the container");
 
-    let mut child = Command::new(cmd)
-        .args(cmd_args)
-        .spawn()
-        .expect("Spawn");
-    let exit_status = child.wait()
-        .expect("Wait");
+    let cont_init_proc = aucont::RawProcess::from_pid(id);
+    cont_init_proc.ns_enter("user").check("Error entering user namespace");
+    cont_init_proc.ns_enter("uts").check("Error entering uts namespace");
+    cont_init_proc.ns_enter("net").check("Error entering net namespace");
+    cont_init_proc.ns_enter("ipc").check("Error entering ipc namespace");
+    cont_init_proc.ns_enter("cgroup").check("Error entering cgroup namespace");
+    cont_init_proc.ns_enter("pid").check("Error entering pid namespace");
+    cont_init_proc.ns_enter_mnt().check("Error entering mount namespace");
+
+    let mut child = Command::new(cmd).args(cmd_args)
+        .spawn().check("Spawn");
+    let exit_status = child.wait().check("Wait");
     process::exit(match exit_status.code() {
         Some(code) => code,
         None => ::libc::EINTR, // the process is killed by a signal

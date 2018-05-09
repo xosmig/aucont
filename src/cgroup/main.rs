@@ -8,40 +8,54 @@ use ::std::fs;
 use ::std::path::Path;
 use ::aucont::{pid_t, container_dir_suf, sys_mount, sys_umount, sys_chown,
                uid_t, gid_t, get_nprocs};
-use ::std::io::Write;
+use ::std::io::{self, Write};
+
+fn add_task_to_cgroup(cgroup_path: &str, pid: pid_t) -> io::Result<()> {
+    let pid_str = pid.to_string();
+    fs::File::create(format!("{}/tasks", cgroup_path))
+        .and_then(|mut f| f.write_all(pid_str.as_bytes()))
+}
 
 fn main() {
     let matches = clap::App::new("aucont_util_cgroup")
         .version("0.1")
         .about("Utility tool used by aucont to manage cgroups. Requires CAP_SYS_ADMIN.")
         .setting(clap::AppSettings::AllowLeadingHyphen)
-        .arg(clap::Arg::with_name("pid")
+        .arg(clap::Arg::with_name("cont_pid")
             .index(1)
             .required(true)
             .value_name("ID")
             .help("Container id as returned by aucont_start"))
-        .arg(clap::Arg::with_name("uid")
+        .arg(clap::Arg::with_name("cmd")
             .index(2)
-            .required_unless("del")
-            .value_name("UID"))
-        .arg(clap::Arg::with_name("gid")
-            .index(3)
-            .required_unless("del")
-            .value_name("GID"))
-        .arg(clap::Arg::with_name("add")
-            .long("add")
+            .required(true)
+            .value_name("COMMAND")
+            .possible_values(&["create", "delete", "enter"]))
+        .arg(clap::Arg::with_name("perc")
+            .long("perc")
+            .required_if("cmd", "create")
             .value_name("CPU_PERC")
-            .required_unless("del")
-            .conflicts_with("del")
-            .help("Add the container <ID> to a cpu cgroup with cpu restricted to <CPU_PERC>"))
-        .arg(clap::Arg::with_name("del")
-            .long("del")
-            .required_unless("add")
-            .help("Delete the container's cgroup"))
+            .help("For create command"))
+        .arg(clap::Arg::with_name("uid")
+            .long("uid")
+            .required_if("cmd", "create")
+            .value_name("UID")
+            .help("For create command"))
+        .arg(clap::Arg::with_name("gid")
+            .long("gid")
+            .required_if("cmd", "create")
+            .value_name("GID")
+            .help("For create command"))
+        .arg(clap::Arg::with_name("target_pid")
+            .long("target")
+            .required_if("cmd", "enter")
+            .value_name("PID")
+            .help("For enter command: pid of the proccess which should be moved \
+            to the container's cgroup"))
         .get_matches();
 
-    let id = value_t_or_exit!(matches.value_of("pid"), pid_t);
-    let id_str = &id.to_string() as &str;
+    let id = value_t_or_exit!(matches.value_of("cont_pid"), pid_t);
+    let cmd = matches.value_of("cmd").unwrap();
 
     let mount_path = &container_dir_suf(id, "/cpu_cgroup") as &str;
     let cgroup_path = &format!("{}/aucont_{}", mount_path, id) as &str;
@@ -53,8 +67,8 @@ fn main() {
         .expect("Error mounting cgroup filesystem");
     defer! {{ sys_umount(mount_path).expect("Error unmounting cgroup"); }}
 
-    if matches.is_present("add") {
-        let perc = value_t_or_exit!(matches.value_of("add"), u32);
+    if cmd == "create" {
+        let perc = value_t_or_exit!(matches.value_of("perc"), u32);
         let uid = value_t_or_exit!(matches.value_of("uid"), uid_t);
         let gid = value_t_or_exit!(matches.value_of("gid"), gid_t);
 
@@ -64,11 +78,8 @@ fn main() {
 
         fs::create_dir(cgroup_path).expect("Error creating cgroup");
         // TODO: defer_on_unwind! {{ }}
-        sys_chown(cgroup_path, uid, gid)
-            .expect("Error setting owner of cgroup");
-        fs::File::create(format!("{}/tasks", cgroup_path))
-            .and_then(|mut f| f.write_all(id_str.as_bytes()))
-            .expect("Error adding process to cgroup");
+        sys_chown(cgroup_path, uid, gid).expect("Error setting owner of cgroup");
+        add_task_to_cgroup(cgroup_path, id).expect("Error adding process to cgroup");
 
         let nprocs = get_nprocs();
         let period = 100000;
@@ -83,7 +94,7 @@ fn main() {
             .expect("Error setting cgroup cpu quota");
     }
 
-    if matches.is_present("del") {
+    if cmd == "delete" {
         fn remove_cgroup_rec<P: AsRef<Path>>(path: P) {
             for entry in fs::read_dir(path.as_ref()).expect("Error opening cgroup dir") {
                 let path = entry.expect("Error accessing cgroup data").path();
@@ -96,5 +107,10 @@ fn main() {
         if Path::new(cgroup_path).exists() {
             remove_cgroup_rec(cgroup_path);
         }
+    }
+
+    if cmd == "enter" {
+        let target = value_t_or_exit!(matches.value_of("target_pid"), pid_t);
+        add_task_to_cgroup(cgroup_path, target).expect("Error entering container cgroup");
     }
 }

@@ -124,12 +124,8 @@ impl ContainerFactory {
     }
 
     pub fn set_cpu_limit(&mut self) -> Result<()> {
-        if let Some(perc) = self.config.cpu_perc {
-            sudo!(&aucont_util("cgroup"),
-                &self.get_id().to_string(), &getuid().to_string(), &getgid().to_string(),
-                "--add", &perc.to_string())
-                .comment_error("Error setting up cgroups")?;
-        }
+        let perc = self.config.cpu_perc.unwrap_or(100);
+        ::cgroup::cgroup_create(self.get_id(), perc).comment_error("Error setting up cgroups")?;
         Ok(())
     }
 

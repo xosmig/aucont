@@ -48,3 +48,7 @@ pub fn sys_umount(path: &str) -> io::Result<()> {
         sys_return_unit(::libc::umount(path_c.as_ptr()))
     }
 }
+
+pub fn getpid() -> pid_t {
+    unsafe { ::libc::getpid() }
+}
