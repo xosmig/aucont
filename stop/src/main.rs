@@ -1,10 +1,11 @@
-extern crate aucont;
+extern crate aucont_core as core;
+extern crate aucont_lib_container as container;
 #[macro_use]
 extern crate clap;
 
+use ::core::check::Check;
+use ::core::*;
 use ::std::*;
-use ::aucont::*;
-use ::aucont::check::Check;
 use ::container::Container;
 
 fn main() {

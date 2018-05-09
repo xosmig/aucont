@@ -1,36 +1,10 @@
-
-[package]
-name = "aucont"
-version = "0.1.0"
-authors = ["Andrei Tonkikh <andrei.tonkikh@gmail.com>"]
-build = "build.rs"
-
-[build-dependencies]
-gcc = "0.3"
-
-[dependencies]
-clap = "2.31.2"
-libc = "0.2.39"
-num = "0.1.42"
-nix = "0.10.0"
-scopeguard = "0.3.3"
-
-[[bin]]
-name = "aucont_start"
-path = "src/start/main.rs"
-
-[[bin]]
-name = "aucont_stop"
-path = "src/stop/main.rs"
-
-[[bin]]
-name = "aucont_list"
-path = "src/list/main.rs"
-
-[[bin]]
-name = "aucont_exec"
-path = "src/exec/main.rs"
-
-[[bin]]
-name = "aucont_util_cgroup"
-path = "src/cgroup/main.rs"
+[workspace]
+members = [
+    "core",
+    "util_cgroup",
+    "lib_container",
+    "list",
+    "exec",
+    "start",
+    "stop",
+]

@@ -1,12 +1,13 @@
-use ::{shell, Pipe};
-use ::aucont_paths::*;
-use ::raw_process::*;
+use ::core::{shell, Pipe};
+use ::core::aucont_paths::*;
+use ::core::raw_process::*;
+use ::core::libc_wrappers::{getuid, getgid, Uid, Gid};
 use ::std::*;
 use ::std::io::Write;
-use ::nix::unistd::{getuid, getgid, Uid, Gid};
 use ::std::net::Ipv4Addr;
 use super::{Error, Result, Container, CommentError};
 use super::container_init_main::*;
+use ::cgroup::cgroup_create;
 
 pub struct NetworkConfig {
     pub cont_addr: Ipv4Addr,
@@ -125,7 +126,7 @@ impl ContainerFactory {
 
     pub fn set_cpu_limit(&mut self) -> Result<()> {
         let perc = self.config.cpu_perc.unwrap_or(100);
-        ::cgroup::cgroup_create(self.get_id(), perc).comment_error("Error setting up cgroups")?;
+        cgroup_create(self.get_id(), perc).comment_error("Error setting up cgroups")?;
         Ok(())
     }
 

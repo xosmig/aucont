@@ -1,0 +1,9 @@
+[package]
+name = "aucont_util_cgroup"
+version = "0.1.0"
+authors = ["Andrei Tonkikh <andrei.tonkikh@gmail.com>"]
+
+[dependencies]
+"aucont_core" = { path = "../core" }
+clap = "2.31.2"
+scopeguard = "0.3.3"

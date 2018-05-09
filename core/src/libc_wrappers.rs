@@ -6,8 +6,13 @@ use ::std::ptr::null;
 use ::libc;
 
 pub use ::libc::{pid_t, c_int, c_void, ssize_t, size_t, c_ulong, uid_t, gid_t};
+pub use ::libc::{ESRCH, ECHILD, EINTR};
 pub use ::libc::{MS_BIND, MS_REC};
 pub use ::libc_ext::*;
+pub use ::nix::unistd::{pivot_root, chroot, chdir, sethostname, getuid, getgid, setsid};
+pub use ::nix::unistd::{Uid, Gid};
+pub use ::nix::mount::{MntFlags, umount2};
+
 
 pub fn sys_write(fd: RawFd, data: &[u8]) -> io::Result<usize> {
     unsafe { sys_return(libc::write(fd, data.as_ptr() as *const c_void, data.len())) }

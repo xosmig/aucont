@@ -1,12 +1,13 @@
-extern crate aucont;
+extern crate aucont_core as core;
+extern crate aucont_util_cgroup as cgroup;
 #[macro_use]
 extern crate clap;
-extern crate libc;
 
-use ::aucont::{pid_t, cgroup, getpid};
+use ::core::{pid_t, getpid};
+use ::core::libc_wrappers::EINTR;
+use ::core::check::Check;
 use ::std::process::Command;
 use ::std::process;
-use ::aucont::check::Check;
 
 
 fn main() {
@@ -44,7 +45,7 @@ fn main() {
     // Note: this must be done before entering container namespaces
     cgroup::cgroup_enter(id, getpid()).check("Error entering cgroup of the container");
 
-    let cont_init_proc = aucont::RawProcess::from_pid(id);
+    let cont_init_proc = ::core::RawProcess::from_pid(id);
     cont_init_proc.ns_enter("user").check("Error entering user namespace");
     cont_init_proc.ns_enter("uts").check("Error entering uts namespace");
     cont_init_proc.ns_enter("net").check("Error entering net namespace");
@@ -58,6 +59,6 @@ fn main() {
     let exit_status = child.wait().check("Wait");
     process::exit(match exit_status.code() {
         Some(code) => code,
-        None => ::libc::EINTR, // the process is killed by a signal
+        None => EINTR, // the process is killed by a signal
     })
 }

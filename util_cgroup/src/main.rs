@@ -1,4 +1,4 @@
-extern crate aucont;
+extern crate aucont_core as core;
 #[macro_use]
 extern crate clap;
 #[macro_use]
@@ -6,10 +6,10 @@ extern crate scopeguard;
 
 use ::std::fs;
 use ::std::path::Path;
-use ::aucont::{pid_t, container_dir_suf, sys_mount, sys_umount, sys_chown,
-               uid_t, gid_t, get_nprocs};
+use ::core::container_dir_suf;
+use ::core::{pid_t, sys_mount, sys_umount, sys_chown, uid_t, gid_t, get_nprocs};
 use ::std::io::{self, Write};
-use ::aucont::check::Check;
+use ::core::check::Check;
 
 fn add_task_to_cgroup(cgroup_path: &str, pid: pid_t) -> io::Result<()> {
     let pid_str = pid.to_string();
@@ -80,7 +80,6 @@ fn main() {
         fs::create_dir(cgroup_path).check("Error creating cgroup");
         defer_on_unwind!
             {{ fs::remove_dir(cgroup_path).log_error("Error removing cgroup directory"); }}
-        // TODO: defer_on_unwind! {{ }}
         sys_chown(cgroup_path, uid, gid).check("Error setting owner of cgroup");
         add_task_to_cgroup(cgroup_path, id).check("Error adding process to cgroup");
 

@@ -1,13 +1,19 @@
+#[macro_use]
+extern crate aucont_core as core;
+extern crate aucont_util_cgroup as cgroup;
+
 mod container_init_main;
 pub mod factory;
 pub mod result;
 
-pub use ::raw_process::pid_t;
+pub use ::core::raw_process::pid_t;
 
 use ::std::fs;
-use ::raw_process::*;
-use ::{container_dir, container_info_dir, read_number};
-use self::result::{Error, Result, CommentError};
+use ::core::raw_process::*;
+use ::core::{container_dir, container_info_dir, read_number};
+use ::core::libc_wrappers::{ESRCH, ECHILD};
+use ::result::{Error, Result, CommentError};
+use ::cgroup::cgroup_delete;
 
 
 pub struct Container {
@@ -19,7 +25,7 @@ fn suppress_esrch(res: ::std::io::Result<()>) -> ::std::io::Result<()> {
     match res {
         Err(e) => {
             match e.raw_os_error() {
-                Some(::libc::ESRCH) => Ok(()),
+                Some(ESRCH) => Ok(()),
                 _ => Err(e),
             }
         },
@@ -52,12 +58,12 @@ impl Container {
         let id = self.get_id();
         let ret = match self.process.wait() {
             Err(e) => match e.raw_os_error() {
-                Some(::libc::ECHILD) => { 0 },
+                Some(ECHILD) => { 0 },
                 _ => return Err(e).comment_error("Waiting for process to finish"),
             },
             Ok(code) => code,
         };
-        ::cgroup::cgroup_delete(id).comment_error("Error removing cgroup")?;
+        cgroup_delete(id).comment_error("Error removing cgroup")?;
         fs::remove_dir_all(&container_dir(id)).comment_error("Removing container files")?;
         Ok(ret)
     }

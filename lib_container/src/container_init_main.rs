@@ -1,11 +1,9 @@
-use ::*;
+use ::core::*;
+use ::core::redirect_io::*;
+use ::core::raw_process::CLONE_NEWCGROUP;
+use ::core::check::Check;
 use ::std::*;
 use ::std::os::unix::process::CommandExt;
-use ::nix::unistd::{pivot_root, chroot, chdir, sethostname};
-use ::nix::mount::{MntFlags, umount2};
-use ::redirect_io::*;
-use ::raw_process::CLONE_NEWCGROUP;
-use ::check::Check;
 
 pub struct ContainerInitConfig {
     pub cmd: String,
@@ -21,7 +19,7 @@ pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
     sys_unshare(CLONE_NEWCGROUP).check("Unshare cgroup namespace");
 
     if config.daemonize {
-        ::nix::unistd::setsid().check("ERROR daemonizing container");
+        setsid().check("ERROR daemonizing container");
         let stdin_file: &str = &container_info_file(pid_in_host, "stdin");
         fs::File::create(&stdin_file)
             .check("ERROR creating stdin file");

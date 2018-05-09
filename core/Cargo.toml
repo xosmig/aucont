@@ -1,0 +1,17 @@
+[package]
+name = "aucont_core"
+version = "0.1.0"
+authors = ["Andrei Tonkikh <andrei.tonkikh@gmail.com>"]
+
+[build-dependencies]
+gcc = "0.3"
+
+[dependencies]
+libc = "0.2.39"
+num = "0.1.42"
+nix = "0.10.0"
+# clap = "2.31.2"
+
+# [[bin]]
+# name = "aucont_util_cgroup"
+# path = "src/cgroup/main.rs"

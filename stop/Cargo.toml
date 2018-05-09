@@ -1,0 +1,9 @@
+[package]
+name = "aucont_stop"
+version = "0.1.0"
+authors = ["Andrei Tonkikh <andrei.tonkikh@gmail.com>"]
+
+[dependencies]
+"aucont_core" = { path = "../core" }
+"aucont_lib_container" = { path = "../lib_container" }
+clap = "2.31.2"

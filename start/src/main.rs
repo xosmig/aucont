@@ -1,10 +1,9 @@
-extern crate aucont;
+extern crate aucont_core as core;
+extern crate aucont_lib_container as container;
 #[macro_use]
 extern crate clap;
-extern crate nix;
 
-use ::aucont::*;
-use ::aucont::check::Check;
+use ::core::check::Check;
 use ::container::factory::*;
 use ::std::process;
 use ::std::net::Ipv4Addr;
