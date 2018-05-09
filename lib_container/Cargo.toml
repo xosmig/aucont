@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["Andrei Tonkikh <andrei.tonkikh@gmail.com>"]
 
 [dependencies]
-"aucont_core" = { path = "../core" }
-"aucont_util_cgroup" = { path = "../util_cgroup" }
+aucont_core = { path = "../core" }
+aucont_util_cgroup = { path = "../util_cgroup" }

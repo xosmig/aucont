@@ -7,4 +7,5 @@ members = [
     "exec",
     "start",
     "stop",
+    "cluster",
 ]

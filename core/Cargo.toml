@@ -10,8 +10,3 @@ gcc = "0.3"
 libc = "0.2.39"
 num = "0.1.42"
 nix = "0.10.0"
-# clap = "2.31.2"
-
-# [[bin]]
-# name = "aucont_util_cgroup"
-# path = "src/cgroup/main.rs"
