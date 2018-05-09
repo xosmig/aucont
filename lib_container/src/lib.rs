@@ -7,12 +7,12 @@ pub mod factory;
 pub mod result;
 
 pub use ::core::raw_process::pid_t;
+pub use ::result::{Result, Error, CommentError};
 
 use ::std::fs;
 use ::core::raw_process::*;
 use ::core::{container_dir, container_info_dir, read_number};
 use ::core::libc_wrappers::{ESRCH, ECHILD};
-use ::result::{Error, Result, CommentError};
 use ::cgroup::cgroup_delete;
 
 

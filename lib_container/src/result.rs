@@ -1,14 +1,16 @@
 use std::{string::String, error, fmt, result};
+use ::std::marker::Send;
+
 
 pub struct Error {
     comment: String,
-    cause: Option<Box<error::Error>>,
+    cause: Option<Box<error::Error + Send + 'static>>,
 }
 
 impl Error {
     pub fn new<S, E>(comment: S, cause: E) -> Error
-        where S: Into<String>, E: Into<Box<error::Error>> {
-        Error { comment: comment.into(), cause: Some(cause.into()) }
+        where S: Into<String>, E: error::Error + Send + 'static {
+        Error { comment: comment.into(), cause: Some(Box::new(cause)) }
     }
 
     pub fn simple<S: Into<String>>(error_message: S) -> Error {
@@ -45,7 +47,7 @@ impl error::Error for Error {
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        self.cause.as_ref().map(|e| e.as_ref())
+        self.cause.as_ref().map(|e| e.as_ref() as &error::Error)
     }
 }
 
@@ -61,7 +63,7 @@ pub trait CommentError<T> {
     fn comment_error<S: Into<String>>(self, comment: S) -> Result<T>;
 }
 
-impl<T, E: Into<Box<error::Error>>> CommentError<T> for result::Result<T, E> {
+impl<T, E: error::Error + Send + 'static> CommentError<T> for result::Result<T, E> {
     fn comment_error<S: Into<String>>(self, comment: S) -> Result<T> {
         match self {
             Ok(x) => Ok(x),
