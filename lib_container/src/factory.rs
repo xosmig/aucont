@@ -153,8 +153,8 @@ impl ContainerFactory {
             sudo!("nsenter", "--net", "-t", id, "ip", "link", "set", "lo", "up")?;
             sudo!("nsenter", "--net", "-t", id, "ip", "link", "set", veth_guest, "name", "eth0")?;
             sudo!("nsenter", "--net", "-t", id, "ip", "link", "set", "eth0", "up")?;
-            sudo!("nsenter", "--net", "-t", id, "ip", "addr", "add",
-                &format!("{}/24", guest_ip), "dev", "eth0")?;
+            sudo!("nsenter", "--net", "-t", id, "ip", "addr", "add", guest_ip, "dev", "eth0")?;
+            sudo!("nsenter", "--net", "-t", id, "ip", "route", "add", "default", "dev", "eth0")?;
             sudo!("ip", "link", "set", veth_host, "up")?;
             sudo!("ip", "route", "add", guest_ip, "dev", veth_host)?;
             if let Some(host_addr) = conf.host_addr {

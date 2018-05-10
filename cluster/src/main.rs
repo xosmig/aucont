@@ -26,6 +26,11 @@ struct Config {
     output_dir_path: String,  // TODO
 }
 
+fn get_ip(last_octet: u8) -> String {
+    format!("10.0.2.{}", last_octet)
+}
+
+
 fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: String)
                  -> JoinHandle<container::Result<()>> {
     thread::spawn(move || {
@@ -39,11 +44,11 @@ fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: 
                 image_path: config.container_image_path,
                 cmd: config.cmd,
                 cmd_args: config.args,
-//                net: Some(NetworkConfig {
-//                    cont_addr: replica_ip,
-//                    host_addr: Some("10.248.66.1".to_string().parse().unwrap()),
-//                    host_bridge: Some(bridge.clone()),
-//                }),
+                net: Some(NetworkConfig {
+                    cont_addr: replica_ip,
+                    host_addr: Some(get_ip(1).to_string().parse().unwrap()),
+                    host_bridge: Some(bridge.clone()),
+                }),
                 cpu_perc: None,
                 environment: vec![
                     ("REPLICA_IX".to_string(), replica_id.to_string()),
@@ -81,30 +86,35 @@ fn real_main() -> i32 {
         .check("ERROR reading or parsing config");
 
     let ips: Vec<_> = (0..config.replica_count).map(|replica_id| {
-        let ip = format!("10.248.66.{}", replica_id + 100);
+        let ip = get_ip((replica_id + 100) as u8);
         env::set_var(format!("REPLICA_{}_IP", replica_id), &ip);
         Ipv4Addr::from_str(&ip).unwrap()
     }).collect();
 
     let pid = getpid();
     let bridge = format!("auc{}br", pid);
-//    sudo!("ip", "link", "add", &bridge, "type", "bridge").check("Error setting up network bridge");
-//    defer! {{
-//        sudo!("ip", "link", "del", &bridge).log_error("Error deleting network bridge");
-//    }};
-//    sudo!("ip", "link", "set", &bridge, "up").check("Error setting up network bridge");
-//    defer! {{
-//        sudo!("ip", "link", "set", &bridge, "down").log_error("Error shutting down network bridge");
-//    }};
-//    sudo!("ip", "addr", "add", "10.248.66.1", "dev", &bridge).check("Error setting ip address");
+    sudo!("ip", "link", "add", &bridge, "type", "bridge").check("Error setting up network bridge");
+    defer! {{
+        sudo!("ip", "link", "del", &bridge).log_error("Error deleting network bridge");
+    }};
+    sudo!("ip", "link", "set", &bridge, "up").check("Error setting up network bridge");
+    defer! {{
+        sudo!("ip", "link", "set", &bridge, "down").log_error("Error disabling network bridge");
+    }};
+//    sudo!("ip", "addr", "add", &get_ip(1), "dev", &bridge)
+//        .check("Error setting ip address");
+    sudo!("iptables", "--append", "FORWARD", "--protocol", "all",
+            "--in-interface", &bridge, "--jump", "ACCEPT")
+        .check("Error configuring iptables");
 
     let threads: Vec<_> = (0..config.replica_count).map(|replica_id| {
         start_replica(config.clone(), replica_id, ips[replica_id as usize], bridge.clone())
     }).collect();
 
     let mut failed = false;
-    for thread in threads {
-        if let None = thread.join().unwrap().log_error("Error in a replica manager") {
+    for (replica_id, thread) in threads.into_iter().enumerate() {
+        let error_string = &format!("Error in replica manager {}", replica_id);
+        if let None = thread.join().unwrap().log_error(error_string) {
             failed = true;
         }
     }
