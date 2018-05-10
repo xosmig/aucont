@@ -156,20 +156,13 @@ impl ContainerFactory {
             sudo!("nsenter", "--net", "-t", id, "ip", "addr", "add", guest_ip, "dev", "eth0")?;
             sudo!("nsenter", "--net", "-t", id, "ip", "route", "add", "default", "dev", "eth0")?;
             sudo!("ip", "link", "set", veth_host, "up")?;
-            sudo!("ip", "route", "add", guest_ip, "dev", veth_host)?;
             if let Some(host_addr) = conf.host_addr {
                 sudo!("ip", "addr", "add", &host_addr.to_string(), "dev", veth_host)?;
+                sudo!("ip", "route", "add", guest_ip, "dev", veth_host)?;
             }
             if let Some(bridge) = conf.host_bridge.clone() {
                 sudo!("ip", "link", "set", veth_host, "master", &bridge)?;
             }
-
-            // sudo ip link add br_cont type bridge
-            // sudo ip link set veth_host master br_cont
-            // sudo ip link set br_cont up
-            // ...
-            // sudo ip link set br_cont down
-            // sudo ip link del br_cont
         }
         Ok(())
     }

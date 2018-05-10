@@ -46,7 +46,7 @@ fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: 
                 cmd_args: config.args,
                 net: Some(NetworkConfig {
                     cont_addr: replica_ip,
-                    host_addr: Some(get_ip(1).to_string().parse().unwrap()),
+                    host_addr: None, //Some(get_ip(1).to_string().parse().unwrap()),
                     host_bridge: Some(bridge.clone()),
                 }),
                 cpu_perc: None,
@@ -85,12 +85,6 @@ fn real_main() -> i32 {
     let config: Config = serde_json::from_reader(config_file)
         .check("ERROR reading or parsing config");
 
-    let ips: Vec<_> = (0..config.replica_count).map(|replica_id| {
-        let ip = get_ip((replica_id + 100) as u8);
-        env::set_var(format!("REPLICA_{}_IP", replica_id), &ip);
-        Ipv4Addr::from_str(&ip).unwrap()
-    }).collect();
-
     let pid = getpid();
     let bridge = format!("auc{}br", pid);
     sudo!("ip", "link", "add", &bridge, "type", "bridge").check("Error setting up network bridge");
@@ -101,14 +95,21 @@ fn real_main() -> i32 {
     defer! {{
         sudo!("ip", "link", "set", &bridge, "down").log_error("Error disabling network bridge");
     }};
-//    sudo!("ip", "addr", "add", &get_ip(1), "dev", &bridge)
-//        .check("Error setting ip address");
+    sudo!("ip", "addr", "add", &get_ip(1), "dev", &bridge).check("Error setting ip address");
+
     sudo!("iptables", "--append", "FORWARD", "--in-interface", &bridge, "--jump", "ACCEPT")
         .check("Error configuring iptables");
     defer! {{
         sudo!("iptables", "--delete", "FORWARD", "--in-interface", &bridge, "--jump", "ACCEPT")
             .log_error("Error removing rule from iptables");
     }}
+
+    let ips: Vec<_> = (0..config.replica_count).map(|replica_id| {
+        let ip = &get_ip((replica_id + 100) as u8);
+        env::set_var(format!("REPLICA_{}_IP", replica_id), ip);
+        sudo!("ip", "route", "add", ip, "dev", &bridge).check("Error adding network route");
+        Ipv4Addr::from_str(ip).unwrap()
+    }).collect();
 
     let threads: Vec<_> = (0..config.replica_count).map(|replica_id| {
         start_replica(config.clone(), replica_id, ips[replica_id as usize], bridge.clone())
