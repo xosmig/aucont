@@ -5,6 +5,7 @@ use ::core::check::Check;
 use ::std::{fs, process, env};
 use ::std::os::unix::process::CommandExt;
 
+
 pub struct ContainerInitConfig {
     pub daemonize: bool,
     pub cmd: String,
@@ -15,6 +16,7 @@ pub struct ContainerInitConfig {
     pub redirect_stdin: Option<String>,
     pub redirect_stdout: Option<String>,
 }
+
 
 pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
     let pid_in_host: pid_t = read_number(&mut pipe)
@@ -35,9 +37,11 @@ pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
             .unwrap_or(container_info_file(pid_in_host, "stdout"));
         redirect_stdout(stdout_file).check("ERROR redirecting stdout");
 
-        let stderr_file = &config.redirect_stderr
-            .unwrap_or(container_info_file(pid_in_host, "stderr"));
-        redirect_stderr(stderr_file).check("ERROR redirecting stderr");
+        if let Some(path) = config.redirect_stderr {
+            redirect_stderr(path).check("ERROR redirecting stderr to a file");
+        } else {
+            redirect_stderr_to_stdout().check("ERROR redirecting stderr to stdout");
+        }
     }
 
     for entry in config.environment {

@@ -9,6 +9,7 @@ mod raw {
         pub fn redirect_stdin(path: *const c_char) -> c_int;
         pub fn redirect_stdout(path: *const c_char) -> c_int;
         pub fn redirect_stderr(path: *const c_char) -> c_int;
+        pub fn redirect_stderr_to_stdout() -> c_int;
     }
 }
 
@@ -31,4 +32,8 @@ pub fn redirect_stderr<S: AsRef<str>>(path: S) -> io::Result<()> {
         let path_c = CString::new(path.as_ref()).unwrap();
         sys_return_unit(raw::redirect_stderr(path_c.as_ptr()))
     }
+}
+
+pub fn redirect_stderr_to_stdout() -> io::Result<()> {
+    unsafe { sys_return_unit(raw::redirect_stderr_to_stdout()) }
 }

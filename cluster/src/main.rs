@@ -35,9 +35,7 @@ fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: 
                  -> JoinHandle<container::Result<()>> {
     thread::spawn(move || {
         let output_path = format!("{}/output_{}.txt", config.output_dir_path, replica_id);
-        // FIXME
-        let output_path2 = format!("{}/stderr_{}.txt", config.output_dir_path, replica_id);
-        for attempt in 0..1 {
+        for attempt in 0..1000 {
             let config = config.clone();
             let container = ContainerFactory::new_container(ContainerConfig {
                 daemonize: true,
@@ -46,7 +44,7 @@ fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: 
                 cmd_args: config.args,
                 net: Some(NetworkConfig {
                     cont_addr: replica_ip,
-                    host_addr: None, //Some(get_ip(1).to_string().parse().unwrap()),
+                    host_addr: None,
                     host_bridge: Some(bridge.clone()),
                 }),
                 cpu_perc: None,
@@ -56,7 +54,6 @@ fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: 
                     ("RESTART_NUMBER".to_string(), attempt.to_string()),
                 ],
                 redirect_stdout: Some(output_path.clone()),
-                redirect_stderr: Some(output_path2.clone()),
                 ..Default::default()
             })?;
 
