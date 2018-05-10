@@ -23,7 +23,7 @@ struct Config {
     cmd: String,
     args: Vec<String>,
     replica_count: u32,
-    output_dir_path: String,  // TODO
+    output_dir_path: String,
 }
 
 fn get_ip(last_octet: u8) -> String {
@@ -103,9 +103,12 @@ fn real_main() -> i32 {
     }};
 //    sudo!("ip", "addr", "add", &get_ip(1), "dev", &bridge)
 //        .check("Error setting ip address");
-    sudo!("iptables", "--append", "FORWARD", "--protocol", "all",
-            "--in-interface", &bridge, "--jump", "ACCEPT")
+    sudo!("iptables", "--append", "FORWARD", "--in-interface", &bridge, "--jump", "ACCEPT")
         .check("Error configuring iptables");
+    defer! {{
+        sudo!("iptables", "--delete", "FORWARD", "--in-interface", &bridge, "--jump", "ACCEPT")
+            .log_error("Error removing rule from iptables");
+    }}
 
     let threads: Vec<_> = (0..config.replica_count).map(|replica_id| {
         start_replica(config.clone(), replica_id, ips[replica_id as usize], bridge.clone())
