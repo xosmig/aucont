@@ -1,0 +1,5 @@
+warning: Missing auto-load script at offset 0 in section .debug_gdb_scripts
+of file /home/andrey/work/programming/docker/tools/src/target/debug/aucont_cluster.
+Use `info auto-load python-scripts [REGEXP]' to list them.
+thread 'main' panicked at 'ERROR opening config file: No such file or directory (os error 2)', core/src/check.rs:16:23
+note: Run with `RUST_BACKTRACE=1` for a backtrace.

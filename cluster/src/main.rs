@@ -30,18 +30,20 @@ fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: 
                  -> JoinHandle<container::Result<()>> {
     thread::spawn(move || {
         let output_path = format!("{}/output_{}.txt", config.output_dir_path, replica_id);
-        for attempt in 0..10 {
+        // FIXME
+        let output_path2 = format!("{}/stderr_{}.txt", config.output_dir_path, replica_id);
+        for attempt in 0..1 {
             let config = config.clone();
             let container = ContainerFactory::new_container(ContainerConfig {
                 daemonize: true,
                 image_path: config.container_image_path,
                 cmd: config.cmd,
                 cmd_args: config.args,
-                net: Some(NetworkConfig {
-                    cont_addr: replica_ip,
-                    host_addr: None,
-                    host_bridge: Some(bridge.clone()),
-                }),
+//                net: Some(NetworkConfig {
+//                    cont_addr: replica_ip,
+//                    host_addr: Some("10.248.66.1".to_string().parse().unwrap()),
+//                    host_bridge: Some(bridge.clone()),
+//                }),
                 cpu_perc: None,
                 environment: vec![
                     ("REPLICA_IX".to_string(), replica_id.to_string()),
@@ -49,7 +51,7 @@ fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: 
                     ("RESTART_NUMBER".to_string(), attempt.to_string()),
                 ],
                 redirect_stdout: Some(output_path.clone()),
-                redirect_stderr: Some(output_path.clone()),
+                redirect_stderr: Some(output_path2.clone()),
                 ..Default::default()
             })?;
 
@@ -61,7 +63,7 @@ fn start_replica(config: Config, replica_id: u32, replica_ip: Ipv4Addr, bridge: 
 }
 
 
-fn main() {
+fn real_main() -> i32 {
     let matches = clap::App::new("aucont_cluster")
         .version("0.1")
         .about("Orchestration tool for aucont containers.")
@@ -79,21 +81,22 @@ fn main() {
         .check("ERROR reading or parsing config");
 
     let ips: Vec<_> = (0..config.replica_count).map(|replica_id| {
-        let ip = format!("10.0.17.{}", replica_id + 1);
+        let ip = format!("10.248.66.{}", replica_id + 100);
         env::set_var(format!("REPLICA_{}_IP", replica_id), &ip);
         Ipv4Addr::from_str(&ip).unwrap()
     }).collect();
 
     let pid = getpid();
     let bridge = format!("auc{}br", pid);
-    sudo!("ip", "link", "add", &bridge, "type", "bridge").check("Error setting up network bridge");
-    defer! {{
-        sudo!("ip", "link", "del", &bridge).log_error("Error deleting network bridge");
-    }};
-    sudo!("ip", "link", "set", &bridge, "up").check("Error setting up network bridge");
-    defer! {{
-        sudo!("ip", "link", "set", &bridge, "down").log_error("Error shutting down network bridge");
-    }};
+//    sudo!("ip", "link", "add", &bridge, "type", "bridge").check("Error setting up network bridge");
+//    defer! {{
+//        sudo!("ip", "link", "del", &bridge).log_error("Error deleting network bridge");
+//    }};
+//    sudo!("ip", "link", "set", &bridge, "up").check("Error setting up network bridge");
+//    defer! {{
+//        sudo!("ip", "link", "set", &bridge, "down").log_error("Error shutting down network bridge");
+//    }};
+//    sudo!("ip", "addr", "add", "10.248.66.1", "dev", &bridge).check("Error setting ip address");
 
     let threads: Vec<_> = (0..config.replica_count).map(|replica_id| {
         start_replica(config.clone(), replica_id, ips[replica_id as usize], bridge.clone())
@@ -106,7 +109,10 @@ fn main() {
         }
     }
 
-    if failed {
-        process::exit(1);
-    }
+    if failed { 1 } else { 0 }
+}
+
+fn main() {
+    let exit_code = real_main();
+    process::exit(exit_code);
 }
