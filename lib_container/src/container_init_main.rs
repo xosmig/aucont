@@ -2,13 +2,18 @@ use ::core::*;
 use ::core::redirect_io::*;
 use ::core::raw_process::CLONE_NEWCGROUP;
 use ::core::check::Check;
-use ::std::*;
+use ::std::{fs, process, env};
 use ::std::os::unix::process::CommandExt;
 
 pub struct ContainerInitConfig {
+    pub daemonize: bool,
     pub cmd: String,
     pub cmd_args: Vec<String>,
-    pub daemonize: bool,
+
+    pub environment: Vec<(String, String)>,
+    pub redirect_stderr: Option<String>,
+    pub redirect_stdin: Option<String>,
+    pub redirect_stdout: Option<String>,
 }
 
 pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
@@ -20,15 +25,23 @@ pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
 
     if config.daemonize {
         setsid().check("ERROR daemonizing container");
-        let stdin_file: &str = &container_info_file(pid_in_host, "stdin");
-        fs::File::create(&stdin_file)
-            .check("ERROR creating stdin file");
-        redirect_stdin(stdin_file)
-            .check("ERROR redirecting stdin");
-        redirect_stdout(container_info_file(pid_in_host, "stdout"))
-            .check("ERROR redirecting stdout");
-        redirect_stderr(container_info_file(pid_in_host, "stderr"))
-            .check("ERROR redirecting stderr");
+
+        let stdin_file = &config.redirect_stdin
+            .unwrap_or(container_info_file(pid_in_host, "stdin"));
+        fs::File::create(stdin_file).check("ERROR creating stdin file");
+        redirect_stdin(stdin_file).check("ERROR redirecting stdin");
+
+        let stdout_file = &config.redirect_stdout
+            .unwrap_or(container_info_file(pid_in_host, "stdout"));
+        redirect_stdout(stdout_file).check("ERROR redirecting stdout");
+
+        let stderr_file = &config.redirect_stderr
+            .unwrap_or(container_info_file(pid_in_host, "stderr"));
+        redirect_stderr(stderr_file).check("ERROR redirecting stderr");
+    }
+
+    for entry in config.environment {
+        env::set_var(entry.0, entry.1);
     }
     sethostname("container").check("ERROR setting hostname");
 

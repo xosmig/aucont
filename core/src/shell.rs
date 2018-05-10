@@ -24,7 +24,7 @@ pub fn shell_cmd<I, S1, S2>(cmd: S1, args: I) -> io::Result<()>
 #[macro_export]
 macro_rules! shell {
     ( $cmd: expr, $( $x: expr ),* ) => {
-        shell::shell_cmd($cmd, &[ $( $x ),* ])
+        $crate::shell::shell_cmd($cmd, &[ $( $x ),* ])
     };
 }
 

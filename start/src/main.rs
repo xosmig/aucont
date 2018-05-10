@@ -49,8 +49,8 @@ fn main() {
     let net_config = matches.value_of("net").map(|addr_str| {
         let cont_addr: Ipv4Addr = addr_str.parse().check("Can't parse ip address");
         let octets = cont_addr.octets();
-        let host_addr = Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3] + 1);
-        NetworkConfig { cont_addr, host_addr }
+        let host_addr = Some(Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3] + 1));
+        NetworkConfig { cont_addr, host_addr, host_bridge: None }
     });
 
     let container = ContainerFactory::new_container(
@@ -64,7 +64,8 @@ fn main() {
             },
             net: net_config,
             cpu_perc: matches.value_of("cpu")
-                .map(|_| value_t_or_exit!(matches.value_of("cpu"), u32))
+                .map(|_| value_t_or_exit!(matches.value_of("cpu"), u32)),
+            ..Default::default()
         }
     ).check("ERROR creating container");
 

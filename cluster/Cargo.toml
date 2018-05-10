@@ -5,7 +5,9 @@ authors = ["Andrei Tonkikh <andrei.tonkikh@gmail.com>"]
 
 [dependencies]
 aucont_core = { path = "../core" }
+aucont_lib_container = { path = "../lib_container" }
 clap = "2.31.2"
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
+scopeguard = "0.3.3"

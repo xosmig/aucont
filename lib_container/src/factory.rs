@@ -1,4 +1,4 @@
-use ::core::{shell, Pipe};
+use ::core::Pipe;
 use ::core::aucont_paths::*;
 use ::core::raw_process::*;
 use ::core::libc_wrappers::{getuid, getgid, Uid, Gid};
@@ -11,9 +11,11 @@ use ::cgroup::cgroup_create;
 
 pub struct NetworkConfig {
     pub cont_addr: Ipv4Addr,
-    pub host_addr: Ipv4Addr,
+    pub host_addr: Option<Ipv4Addr>,
+    pub host_bridge: Option<String>,
 }
 
+#[derive(Default)]
 pub struct ContainerConfig {
     pub daemonize: bool,
     pub image_path: String,
@@ -21,6 +23,11 @@ pub struct ContainerConfig {
     pub cmd_args: Vec<String>,
     pub net: Option<NetworkConfig>,
     pub cpu_perc: Option<u32>,
+
+    pub environment: Vec<(String, String)>,
+    pub redirect_stderr: Option<String>,
+    pub redirect_stdin: Option<String>,
+    pub redirect_stdout: Option<String>,
 }
 
 pub struct ContainerFactory {
@@ -55,9 +62,13 @@ impl ContainerFactory {
             container_init_main(
                 pipe,
                 ContainerInitConfig {
+                    daemonize: config.daemonize,
                     cmd: config.cmd.clone(),
                     cmd_args: config.cmd_args.clone(),
-                    daemonize: config.daemonize,
+                    environment: config.environment,
+                    redirect_stderr: config.redirect_stderr,
+                    redirect_stdin: config.redirect_stdin,
+                    redirect_stdout: config.redirect_stdout,
                 },
             );
             // unreachable
@@ -132,11 +143,10 @@ impl ContainerFactory {
 
     fn configure_network_with_io_result(&mut self) -> io::Result<()> {
         if let Some(ref conf) = self.config.net {
-            let id = &self.get_id().to_string() as &str;
-            let guest_ip = &conf.cont_addr.to_string() as &str;
-            let host_ip = &conf.host_addr.to_string() as &str;
-            let veth_host = &format!("veth{}h", id) as &str;
-            let veth_guest = &format!("veth{}g", id) as &str;
+            let id = &self.get_id().to_string();
+            let guest_ip = &conf.cont_addr.to_string();
+            let veth_host = &format!("veth{}h", id);
+            let veth_guest = &format!("veth{}g", id);
 
             sudo!("ip", "link", "add", veth_host, "type", "veth", "peer", "name", veth_guest)?;
             sudo!("ip", "link", "set", veth_guest, "netns", id)?;
@@ -146,8 +156,13 @@ impl ContainerFactory {
             sudo!("nsenter", "--net", "-t", id, "ip", "addr", "add",
                 &format!("{}/24", guest_ip), "dev", "eth0")?;
             sudo!("ip", "link", "set", veth_host, "up")?;
-            sudo!("ip", "addr", "add", host_ip, "dev", veth_host)?;
             sudo!("ip", "route", "add", guest_ip, "dev", veth_host)?;
+            if let Some(host_addr) = conf.host_addr {
+                sudo!("ip", "addr", "add", &host_addr.to_string(), "dev", veth_host)?;
+            }
+            if let Some(bridge) = conf.host_bridge.clone() {
+                sudo!("ip", "link", "set", veth_host, "master", &bridge)?;
+            }
 
             // sudo ip link add br_cont type bridge
             // sudo ip link set veth_host master br_cont
