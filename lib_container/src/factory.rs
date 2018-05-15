@@ -1,7 +1,7 @@
 use ::core::Pipe;
 use ::core::aucont_paths::*;
 use ::core::raw_process::*;
-use ::core::libc_wrappers::{getuid, getgid, Uid, Gid};
+use ::core::libc_wrappers::{getuid, getgid};
 use ::std::*;
 use ::std::io::Write;
 use ::std::net::Ipv4Addr;
@@ -86,13 +86,13 @@ impl ContainerFactory {
     }
 
     pub fn map_uid(&mut self) -> Result<()> {
-        self.process.uid_map()
-            .entry(getuid(), Uid::from_raw(0))
-            .set().comment_error("Internal error: cannot set UID mapping")?;
+        shell!("bash", "-c",
+            &format!("echo 0 {} 1 | sudo tee /proc/{}/uid_map", getuid(), self.get_id()))
+            .comment_error("Error mapping uid")?;
 
-        self.process.gid_map()
-            .entry(getgid(), Gid::from_raw(0))
-            .set().comment_error("Internal error: cannot set GID mapping")?;
+        shell!("bash", "-c",
+            &format!("echo 0 {} 1 | sudo tee /proc/{}/gid_map", getgid(), self.get_id()))
+            .comment_error("Error mapping gid")?;
 
         Ok(())
     }

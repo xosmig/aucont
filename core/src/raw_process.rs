@@ -37,10 +37,12 @@ impl RawProcess {
         unsafe { sys_return_unit(libc::kill(self.get_pid(), signum)) }
     }
 
+    // Not currently used. Complex uid mappings should be written by a process with capabilities
     pub fn uid_map(&mut self) -> UidMapFactory {
         UidMapFactory::new(self)
     }
 
+    // Not currently used. Gid mappings should be written by a process with capabilities
     pub fn gid_map(&mut self) -> GidMapFactory {
         GidMapFactory::new(self)
     }
@@ -150,7 +152,6 @@ impl<I: fmt::Display> IdMapFactory<I> {
                 .ok().unwrap();
         }
 
-        let mut file = File::create(path)?;
-        file.write_all(buf.as_ref())
+        File::create(path)?.write_all(buf.as_ref())
     }
 }

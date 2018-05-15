@@ -28,6 +28,8 @@ pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
     // cgroup namespace has to be unshared separately when new cgroup roots are established
     sys_unshare(CLONE_NEWCGROUP).check("Unshare cgroup namespace");
 
+    sys_setgroups().check("Error removing supplementary groups");
+
     if config.daemonize {
         setsid().check("ERROR daemonizing container");
 
@@ -62,7 +64,7 @@ pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
     chroot(".").check("Internal error (chroot)");
 
     sys_mount("procfs", "/proc/", "proc", 0, None).check("ERROR mounting procfs");
-    sys_chown("/proc/", 0, 0).check("ERROR setting procfs owner");
+//    sys_chown("/proc/", 0, 0).check("ERROR setting procfs owner");
     // options are copied from a docker container
     sys_mount("sysfs", "/sys/", "sysfs", MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC, None)
         .check("ERROR mounting sysfs");
