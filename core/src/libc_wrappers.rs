@@ -7,7 +7,7 @@ use ::libc;
 
 pub use ::libc::{pid_t, c_int, c_void, ssize_t, size_t, c_ulong, uid_t, gid_t};
 pub use ::libc::{ESRCH, ECHILD, EINTR};
-pub use ::libc::{MS_BIND, MS_REC};
+pub use ::libc::{MS_BIND, MS_REC, MS_RDONLY, MS_NOSUID, MS_NODEV, MS_NOEXEC};
 pub use ::libc_ext::*;
 pub use ::nix::unistd::{pivot_root, chroot, chdir, sethostname, getuid, getgid, setsid};
 pub use ::nix::unistd::{Uid, Gid};
@@ -60,4 +60,8 @@ pub fn getpid() -> pid_t {
 
 pub fn sys_unshare(flags: c_int) -> io::Result<()> {
     unsafe { sys_return_unit(::libc::unshare(flags)) }
+}
+
+pub fn sys_setgroups() -> io::Result<()> {
+    unsafe { sys_return_unit(::libc::setgroups(0, null())) }
 }

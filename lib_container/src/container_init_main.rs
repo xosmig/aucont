@@ -1,4 +1,6 @@
-use ::core::*;
+use ::core::libc_wrappers::*;
+use ::core::aucont_paths::*;
+use ::core::{read_number, Pipe};
 use ::core::redirect_io::*;
 use ::core::raw_process::CLONE_NEWCGROUP;
 use ::core::check::Check;
@@ -19,6 +21,7 @@ pub struct ContainerInitConfig {
 
 
 pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
+
     let pid_in_host: pid_t = read_number(&mut pipe)
         .check("Internal error (PID from pipe)") as pid_t;
 
@@ -59,7 +62,13 @@ pub fn container_init_main(mut pipe: Pipe, config: ContainerInitConfig) -> ! {
     chroot(".").check("Internal error (chroot)");
 
     sys_mount("procfs", "/proc/", "proc", 0, None).check("ERROR mounting procfs");
-    sys_mount("sysfs", "/sys/", "sysfs", 0, None).check("ERROR mounting sysfs");
+    sys_chown("/proc/", 0, 0).check("ERROR setting procfs owner");
+    // options are copied from a docker container
+    sys_mount("sysfs", "/sys/", "sysfs", MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC, None)
+        .check("ERROR mounting sysfs");
+    // FIXME: should be done by host root,
+    // but it's fine not to have ownership over /sys/ for now
+    // sys_chown("/sys/", 0, 0).check("ERROR setting siysfs owner");
     umount2("/mnt", MntFlags::MNT_DETACH).check("ERROR unmounting old root");
 
     // either returns an error or doesn't return at all
